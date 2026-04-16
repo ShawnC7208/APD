@@ -1,0 +1,273 @@
+{
+  "kind": "agent-procedure",
+  "spec_version": "0.1.0",
+  "procedure_id": "log-invoice-to-tracker",
+  "revision": "1",
+  "title": "Log Invoice to Tracker",
+  "summary": "Extract invoice data from an email, update the tracker, and confirm receipt.",
+  "entry_conditions": [
+    "An invoice email arrives for review."
+  ],
+  "inputs_schema": {
+    "type": "object",
+    "properties": {
+      "vendor_name": {
+        "type": "string",
+        "description": "The vendor name extracted from the invoice email."
+      },
+      "invoice_amount": {
+        "type": "number",
+        "description": "The invoice amount extracted from the invoice email."
+      },
+      "approval_threshold": {
+        "type": "number",
+        "default": 5000,
+        "description": "Finance approval threshold used to decide whether explicit approval is required."
+      },
+      "sender_email": {
+        "type": "string",
+        "format": "email",
+        "description": "The sender of the invoice email."
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputs_schema": {
+    "type": "object",
+    "properties": {
+      "tracker_row": {
+        "type": "string",
+        "description": "The row in the tracker that was updated."
+      },
+      "confirmation_sent": {
+        "type": "string",
+        "description": "Whether the confirmation reply was sent."
+      }
+    },
+    "additionalProperties": false
+  },
+  "entities": [
+    {
+      "id": "file_1",
+      "type": "file",
+      "name": "vendor_tracker_april.xlsx",
+      "description": "Destination spreadsheet for invoice logging.",
+      "source_hint": "Observed in Excel during capture."
+    }
+  ],
+  "procedure": {
+    "start_node": "step_1",
+    "nodes": [
+      {
+        "id": "step_1",
+        "type": "action",
+        "name": "Read invoice email",
+        "instruction": "Open the invoice email and identify the vendor name, invoice amount, and sender email.",
+        "produces": ["vendor_name", "invoice_amount", "sender_email"],
+        "completion_checks": [
+          "The vendor name, amount, and sender email have been identified."
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "Pause and ask the user if any required invoice detail is missing, ambiguous, or unreadable."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "step_2",
+        "type": "action",
+        "name": "Open tracker",
+        "instruction": "Open the invoice tracker workbook in Excel.",
+        "context_hints": [
+          { "type": "application", "value": "Excel" },
+          { "type": "file", "value": "vendor_tracker_april.xlsx" }
+        ],
+        "completion_checks": [
+          "The tracker workbook is open and visible."
+        ],
+        "recovery": {
+          "strategy": "retry",
+          "instructions": "Retry opening the workbook once and stop for review if the tracker file still cannot be opened."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "step_3",
+        "type": "action",
+        "name": "Update tracker row",
+        "instruction": "Find the next empty row and enter the vendor name and invoice amount.",
+        "uses": ["vendor_name", "invoice_amount"],
+        "produces": ["tracker_row"],
+        "pre_state_checks": [
+          "The tracker workbook is open."
+        ],
+        "completion_checks": [
+          "The vendor name and amount appear in the selected row."
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "If a valid row cannot be located confidently, pause and ask the user which row to use."
+        },
+        "risk": {
+          "level": "medium",
+          "irreversible": false,
+          "confirmation_required": false,
+          "reason": "Spreadsheet edits are reversible before save."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "decision_1",
+        "type": "decision",
+        "name": "Amount above approval threshold?",
+        "question": "Is the invoice amount above the approval threshold?",
+        "evaluation_hint": "Compare the extracted invoice amount with the declared approval_threshold value.",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "approval_1",
+        "type": "approval",
+        "name": "Get finance approval",
+        "approval_required": true,
+        "reason": "High-value invoices require explicit approval before sending confirmation.",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "step_4",
+        "type": "action",
+        "name": "Draft confirmation reply",
+        "instruction": "Prepare a reply confirming that the invoice was updated in the tracker.",
+        "uses": ["sender_email"],
+        "completion_checks": [
+          "A confirmation reply draft is ready."
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "Ask the user for direction if a clear confirmation draft cannot be prepared from the available invoice details."
+        },
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "approval_2",
+        "type": "approval",
+        "name": "Confirm external reply",
+        "approval_required": true,
+        "reason": "This action sends an email to an external party.",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "step_5",
+        "type": "action",
+        "name": "Send reply",
+        "instruction": "Send the confirmation reply.",
+        "completion_checks": [
+          "The confirmation email has been sent."
+        ],
+        "recovery": {
+          "strategy": "abort",
+          "instructions": "Do not send the email if the recipient, approval state, or final draft cannot be verified confidently."
+        },
+        "risk": {
+          "level": "high",
+          "irreversible": true,
+          "confirmation_required": true,
+          "reason": "Sending the email affects an external party."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "done",
+        "type": "terminal",
+        "name": "Procedure completed",
+        "outcome": "success",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      }
+    ],
+    "transitions": [
+      {
+        "from": "step_1",
+        "to": "step_2",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "step_2",
+        "to": "step_3",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "step_3",
+        "to": "decision_1",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "decision_1",
+        "to": "step_4",
+        "condition": "invoice_amount <= approval_threshold",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "decision_1",
+        "to": "approval_1",
+        "condition": "invoice_amount > approval_threshold",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "approval_1",
+        "to": "step_4",
+        "default": true,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "step_4",
+        "to": "approval_2",
+        "default": true,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "approval_2",
+        "to": "step_5",
+        "default": true,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "step_5",
+        "to": "done",
+        "default": true,
+        "observed_vs_inferred": "inferred"
+      }
+    ]
+  },
+  "provenance": {
+    "producer": "capture-system",
+    "source_type": "observed",
+    "source_session_id": "session_123",
+    "created_at": "2026-04-11T14:00:00Z",
+    "capture_scope": {
+      "applications": ["Outlook", "Excel"],
+      "key_files": ["vendor_tracker_april.xlsx"]
+    },
+    "confidence": {
+      "overall": 0.89,
+      "per_node": [
+        { "node_id": "step_1", "confidence": 0.94 },
+        { "node_id": "decision_1", "confidence": 0.71 }
+      ]
+    },
+    "observed_vs_inferred_summary": "Core actions were observed from the recording. Approval and threshold routing were inferred from risk and workflow structure."
+  },
+  "extensions": {}
+}

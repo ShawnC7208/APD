@@ -1,0 +1,14 @@
+{
+  "name": "apd-spec-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run sync-schema --workspace @apd-spec/sdk",
+    "publish-smoke": "bash scripts/publish-smoke.sh",
+    "smoke": "bash scripts/smoke.sh",
+    "test": "npm run build && npm run test --workspace @apd-spec/sdk && npm run test --workspace @apd-spec/cli && npm run smoke"
+  }
+}

@@ -1,0 +1,266 @@
+{
+  "kind": "agent-procedure",
+  "spec_version": "0.1.0",
+  "procedure_id": "process-high-value-purchase-order",
+  "revision": "1",
+  "title": "Process High-Value Purchase Order",
+  "summary": "Validate a high-value purchase order, obtain approval, and submit it to the vendor.",
+  "entry_conditions": [
+    "A purchase order above the manager review threshold is ready for processing."
+  ],
+  "inputs_schema": {
+    "type": "object",
+    "properties": {
+      "purchase_order_id": {
+        "type": "string",
+        "description": "Identifier for the purchase order."
+      },
+      "vendor_name": {
+        "type": "string",
+        "description": "Vendor receiving the order."
+      },
+      "total_amount": {
+        "type": "number",
+        "description": "Total value of the purchase order."
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputs_schema": {
+    "type": "object",
+    "properties": {
+      "approval_status": {
+        "type": "string",
+        "description": "Final approval outcome."
+      },
+      "vendor_submission_status": {
+        "type": "string",
+        "description": "Status of the vendor submission."
+      }
+    },
+    "additionalProperties": false
+  },
+  "entities": [
+    {
+      "id": "record_budget",
+      "type": "record",
+      "name": "Budget Ledger",
+      "description": "System of record for remaining department budget.",
+      "source_hint": "Observed in the procurement dashboard."
+    },
+    {
+      "id": "record_po",
+      "type": "record",
+      "name": "Purchase Order",
+      "description": "High-value purchase order under review.",
+      "source_hint": "Observed in the procurement dashboard."
+    }
+  ],
+  "procedure": {
+    "start_node": "step_1",
+    "nodes": [
+      {
+        "id": "step_1",
+        "type": "action",
+        "name": "Open purchase order",
+        "instruction": "Open the purchase order record and review the vendor, amount, and requested items.",
+        "uses": ["purchase_order_id"],
+        "completion_checks": [
+          "The purchase order details are visible."
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "Pause for review if the purchase order record cannot be found or key order details are incomplete."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "step_2",
+        "type": "action",
+        "name": "Verify budget availability",
+        "instruction": "Check the department budget ledger and confirm that sufficient budget remains for the purchase order.",
+        "uses": ["total_amount"],
+        "completion_checks": [
+          "Available budget has been checked against the order total."
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "Ask the user for direction if the ledger is unavailable or the remaining budget cannot be verified confidently."
+        },
+        "risk": {
+          "level": "medium",
+          "irreversible": false,
+          "confirmation_required": false,
+          "reason": "Budget review influences downstream approval but does not change external state."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "decision_1",
+        "type": "decision",
+        "name": "Is budget sufficient?",
+        "question": "Does the department budget cover the full order amount?",
+        "evaluation_hint": "Compare available budget with total_amount after reserving mandatory commitments.",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "approval_1",
+        "type": "approval",
+        "name": "Get manager approval",
+        "approval_required": true,
+        "reason": "High-value orders require explicit manager approval before vendor submission.",
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "step_3",
+        "type": "action",
+        "name": "Submit order to vendor",
+        "instruction": "Submit the approved purchase order to the vendor using the procurement portal.",
+        "uses": ["vendor_name", "purchase_order_id"],
+        "completion_checks": [
+          "The procurement portal confirms the order was submitted."
+        ],
+        "risk": {
+          "level": "critical",
+          "irreversible": true,
+          "confirmation_required": true,
+          "reason": "Submitting the order creates an external procurement commitment with the vendor."
+        },
+        "recovery": {
+          "strategy": "abort",
+          "instructions": "Stop and report the failure if submission status is unclear or the portal reports an error."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "step_4",
+        "type": "action",
+        "name": "Record approval block",
+        "instruction": "Document that the purchase order cannot proceed because budget or approval requirements were not satisfied.",
+        "completion_checks": [
+          "The purchase order record includes the reason the process stopped."
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "Pause for review if the rejection reason is ambiguous."
+        },
+        "risk": {
+          "level": "high",
+          "irreversible": false,
+          "confirmation_required": false,
+          "reason": "The status change can stop a purchase order from moving forward until corrected."
+        },
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "done_success",
+        "type": "terminal",
+        "name": "Purchase order submitted",
+        "outcome": "success",
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "done_failure",
+        "type": "terminal",
+        "name": "Purchase order stopped",
+        "outcome": "failure",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      }
+    ],
+    "transitions": [
+      {
+        "from": "step_1",
+        "to": "step_2",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "step_2",
+        "to": "decision_1",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "decision_1",
+        "to": "approval_1",
+        "condition": "Budget is sufficient for the order",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "decision_1",
+        "to": "step_4",
+        "condition": "Budget is insufficient or cannot be confirmed",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "approval_1",
+        "to": "step_3",
+        "condition": "Manager approval granted",
+        "default": false,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "approval_1",
+        "to": "step_4",
+        "condition": "Manager approval denied or deferred",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "step_3",
+        "to": "done_success",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "step_4",
+        "to": "done_failure",
+        "default": true,
+        "observed_vs_inferred": "inferred"
+      }
+    ]
+  },
+  "provenance": {
+    "producer": "capture-system",
+    "source_type": "observed",
+    "source_session_id": "session_procurement_022",
+    "created_at": "2026-04-12T10:15:00Z",
+    "capture_scope": {
+      "applications": ["Procurement Dashboard", "Budget Ledger", "Vendor Portal"],
+      "key_files": ["po-approval-policy.pdf"]
+    },
+    "confidence": {
+      "overall": 0.84,
+      "per_node": [
+        {
+          "node_id": "step_1",
+          "confidence": 0.96
+        },
+        {
+          "node_id": "step_2",
+          "confidence": 0.91
+        },
+        {
+          "node_id": "decision_1",
+          "confidence": 0.74
+        },
+        {
+          "node_id": "approval_1",
+          "confidence": 0.87
+        }
+      ]
+    },
+    "observed_vs_inferred_summary": "Record review, budget validation, approval gating, and vendor submission were observed. Failure and denial handling was inferred from policy and workflow context."
+  },
+  "extensions": {}
+}

@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shawnc7208.github.io/APD/schema/agent-execution-record-v0.1.schema.json",
+  "title": "Agent Execution Record v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "spec_version",
+    "execution_id",
+    "procedure_ref",
+    "executor",
+    "started_at",
+    "overall_outcome",
+    "node_executions",
+    "approvals",
+    "evidence",
+    "integrity",
+    "extensions"
+  ],
+  "properties": {
+    "kind": {
+      "const": "agent-execution-record"
+    },
+    "spec_version": {
+      "const": "0.1.0"
+    },
+    "execution_id": {
+      "type": "string"
+    },
+    "procedure_ref": {
+      "$ref": "#/$defs/procedureRef"
+    },
+    "executor": {
+      "$ref": "#/$defs/executor"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "overall_outcome": {
+      "enum": ["success", "failure", "canceled", "partial"]
+    },
+    "node_executions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nodeExecution"
+      }
+    },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/approval"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "integrity": {
+      "$ref": "#/$defs/integrity"
+    },
+    "extensions": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "procedureRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "procedure_id", "revision", "spec_version"],
+      "properties": {
+        "kind": {
+          "const": "agent-procedure"
+        },
+        "procedure_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "spec_version": {
+          "type": "string"
+        }
+      }
+    },
+    "executor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent", "adapter"],
+      "properties": {
+        "agent": {
+          "type": "string"
+        },
+        "adapter": {
+          "type": "string"
+        },
+        "environment": {
+          "type": "string"
+        }
+      }
+    },
+    "nodeExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "entered_at", "outcome", "attempt"],
+      "properties": {
+        "node_id": {
+          "type": "string"
+        },
+        "entered_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "exited_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "outcome": {
+          "enum": ["completed", "approved", "rejected", "failed", "skipped", "paused"]
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "input_bindings": {
+          "type": "object"
+        },
+        "output_bindings": {
+          "type": "object"
+        },
+        "tool_invocations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/toolInvocation"
+          }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "toolInvocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool"],
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "approved_by", "approved_at"],
+      "properties": {
+        "node_id": {
+          "type": "string"
+        },
+        "approved_by": {
+          "type": "string"
+        },
+        "approved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "comment": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "reference"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "reference": {
+          "type": "string"
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chain_hash"],
+      "properties": {
+        "chain_hash": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

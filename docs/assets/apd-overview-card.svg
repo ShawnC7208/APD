@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">APD — the procedure format that shows its work</title>
+  <desc id="desc">APD is a JSON procedure format for AI agents with first-class provenance, confidence, and review gates. The card shows a single APD approval node with its metadata fields highlighted.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0b0f17"/>
+      <stop offset="55%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#0a0d13"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="50%" cy="58%" r="60%">
+      <stop offset="0%" stop-color="#1a2336" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#0d1117" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cardBg" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#161b22"/>
+      <stop offset="100%" stop-color="#11151c"/>
+    </linearGradient>
+    <linearGradient id="amberAccent" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f5b324"/>
+      <stop offset="100%" stop-color="#d4901a"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="10" stdDeviation="20" flood-color="#000000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="28" flood-color="#f0a818" flood-opacity="0.09"/>
+    </filter>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Helvetica, Arial, sans-serif; }
+      .mono { font-family: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; }
+      .white { fill: #f5f7fa; }
+      .text  { fill: #e6edf3; }
+      .muted { fill: #8b949e; }
+      .dim   { fill: #6e7681; }
+      .amber { fill: #f5b324; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <rect width="1200" height="720" fill="url(#vignette)"/>
+
+  <!-- ============ HEADER STRIP ============ -->
+  <g>
+    <!-- left: wordmark -->
+    <circle cx="68" cy="56" r="5" fill="url(#amberAccent)"/>
+    <text x="82" y="61" class="sans muted" style="font-size: 12px; font-weight: 700; letter-spacing: 2.4px; text-transform: uppercase;">APD · Agent Procedure Definition</text>
+
+    <!-- right: meta -->
+    <text x="1140" y="61" text-anchor="end" class="mono dim" style="font-size: 12px;">v0.1  ·  Apache 2.0</text>
+  </g>
+
+  <!-- ============ HEADLINE (centered) ============ -->
+  <g text-anchor="middle">
+    <text x="600" y="140" class="sans white" style="font-size: 52px; font-weight: 800; letter-spacing: -1.2px;">
+      <tspan>The procedure format that</tspan>
+    </text>
+    <text x="600" y="198" class="sans white" style="font-size: 52px; font-weight: 800; letter-spacing: -1.2px;">
+      <tspan>shows </tspan><tspan class="amber">its work</tspan><tspan>.</tspan>
+    </text>
+    <!-- amber underline under "its work" -->
+    <rect x="602" y="210" width="180" height="4" rx="2" fill="url(#amberAccent)" opacity="0.9"/>
+
+    <text x="600" y="248" class="sans muted" style="font-size: 15px; font-weight: 500;">A JSON procedure format for AI agents with first-class provenance, confidence, and review gates.</text>
+  </g>
+
+  <!-- ============ THE NODE CARD (centered, full focal point) ============ -->
+  <g transform="translate(180, 290)" filter="url(#cardShadow)">
+    <rect x="0" y="0" width="840" height="348" rx="14" fill="url(#cardBg)" stroke="#262d38" stroke-width="1.5"/>
+
+    <!-- card header bar -->
+    <rect x="0" y="0" width="840" height="50" rx="14" fill="#0f141c"/>
+    <rect x="0" y="36" width="840" height="14" fill="#0f141c"/>
+    <line x1="0" y1="50" x2="840" y2="50" stroke="#262d38" stroke-width="1.5"/>
+
+    <!-- header content -->
+    <circle cx="24" cy="25" r="5.5" fill="#f5b324"/>
+    <text x="40" y="30" class="mono muted" style="font-size: 12.5px;">node  ·  approval</text>
+
+    <!-- NEEDS REVIEW chip -->
+    <rect x="720" y="13" width="104" height="24" rx="12" fill="#1f1407" stroke="#5a3d0a" stroke-width="1"/>
+    <text x="772" y="29" text-anchor="middle" class="sans amber" style="font-size: 10.5px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;">needs review</text>
+
+    <!-- node title block -->
+    <text x="28" y="92" class="mono dim" style="font-size: 11.5px;">step_3</text>
+    <text x="28" y="122" class="sans white" style="font-size: 22px; font-weight: 700;">Get manager approval</text>
+    <text x="28" y="146" class="sans muted" style="font-size: 13.5px;">before refunding amounts above $500.</text>
+
+    <!-- separator + metadata label -->
+    <line x1="28" y1="170" x2="812" y2="170" stroke="#262d38" stroke-width="1"/>
+    <text x="28" y="192" class="sans dim" style="font-size: 10.5px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase;">metadata</text>
+
+    <!-- Two columns of fields, tighter than before -->
+
+    <!-- col 1: observed_vs_inferred -->
+    <g transform="translate(28, 208)">
+      <rect x="0" y="0" width="3" height="24" rx="1.5" fill="url(#amberAccent)"/>
+      <text x="14" y="17" class="mono text" style="font-size: 13px;">observed_vs_inferred</text>
+      <text x="222" y="17" class="mono dim" style="font-size: 13px;">→</text>
+      <text x="244" y="17" class="mono amber" style="font-size: 13px; font-weight: 700;">"inferred"</text>
+    </g>
+
+    <!-- col 2: risk -->
+    <g transform="translate(440, 208)">
+      <rect x="0" y="0" width="3" height="24" rx="1.5" fill="url(#amberAccent)"/>
+      <text x="14" y="17" class="mono text" style="font-size: 13px;">risk</text>
+      <text x="222" y="17" class="mono dim" style="font-size: 13px;">→</text>
+      <text x="244" y="17" class="mono amber" style="font-size: 13px; font-weight: 700;">"high"</text>
+    </g>
+
+    <!-- col 1: confidence -->
+    <g transform="translate(28, 244)">
+      <rect x="0" y="0" width="3" height="24" rx="1.5" fill="url(#amberAccent)"/>
+      <text x="14" y="17" class="mono text" style="font-size: 13px;">confidence</text>
+      <text x="222" y="17" class="mono dim" style="font-size: 13px;">→</text>
+      <text x="244" y="17" class="mono amber" style="font-size: 13px; font-weight: 700;">0.62</text>
+      <rect x="290" y="8" width="110" height="5" rx="2.5" fill="#262d38"/>
+      <rect x="290" y="8" width="68"  height="5" rx="2.5" fill="url(#amberAccent)"/>
+    </g>
+
+    <!-- col 2: confirmation_required -->
+    <g transform="translate(440, 244)">
+      <rect x="0" y="0" width="3" height="24" rx="1.5" fill="url(#amberAccent)"/>
+      <text x="14" y="17" class="mono text" style="font-size: 13px;">confirmation_required</text>
+      <text x="222" y="17" class="mono dim" style="font-size: 13px;">→</text>
+      <text x="244" y="17" class="mono amber" style="font-size: 13px; font-weight: 700;">true</text>
+    </g>
+
+    <!-- col 1: recovery (not highlighted) -->
+    <g transform="translate(28, 280)">
+      <rect x="0" y="0" width="3" height="24" rx="1.5" fill="#262d38"/>
+      <text x="14" y="17" class="mono muted" style="font-size: 13px;">recovery.strategy</text>
+      <text x="222" y="17" class="mono dim" style="font-size: 13px;">→</text>
+      <text x="244" y="17" class="mono muted" style="font-size: 13px;">"ask-user"</text>
+    </g>
+
+    <!-- col 2: provenance (not highlighted) -->
+    <g transform="translate(440, 280)">
+      <rect x="0" y="0" width="3" height="24" rx="1.5" fill="#262d38"/>
+      <text x="14" y="17" class="mono muted" style="font-size: 13px;">provenance.source</text>
+      <text x="222" y="17" class="mono dim" style="font-size: 13px;">→</text>
+      <text x="244" y="17" class="mono muted" style="font-size: 13px;">"capture-7f"</text>
+    </g>
+
+    <!-- punchline inside card -->
+    <line x1="28" y1="316" x2="812" y2="316" stroke="#262d38" stroke-width="1"/>
+    <text x="420" y="338" text-anchor="middle" class="sans amber" style="font-size: 12.5px; font-weight: 700;">↑ First-class fields for provenance, confidence, and review gates.</text>
+  </g>
+
+  <!-- ============ FOOTER (centered) ============ -->
+  <g text-anchor="middle">
+    <text x="600" y="680" class="sans muted" style="font-size: 14px;">
+      <tspan class="amber" font-weight="700">Upstream of</tspan><tspan>  agent-sop  ·  Claude Skills  ·  Cursor commands</tspan>
+    </text>
+  </g>
+</svg>

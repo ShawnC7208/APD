@@ -1,0 +1,41 @@
+{
+  "kind": "agent-execution-record",
+  "spec_version": "0.2.0",
+  "execution_id": "exec_invalid_approval_decision",
+  "procedure_ref": {
+    "kind": "agent-procedure",
+    "procedure_id": "log-invoice-to-tracker",
+    "revision": "1",
+    "spec_version": "0.1.0"
+  },
+  "executor": {
+    "agent": "test-agent",
+    "adapter": "test-adapter"
+  },
+  "started_at": "2026-04-14T10:00:00Z",
+  "completed_at": "2026-04-14T10:00:05Z",
+  "overall_outcome": "partial",
+  "node_executions": [
+    {
+      "node_id": "approval_1",
+      "entered_at": "2026-04-14T10:00:00Z",
+      "exited_at": "2026-04-14T10:00:05Z",
+      "outcome": "paused",
+      "attempt": 1
+    }
+  ],
+  "transitions_taken": [],
+  "approvals": [
+    {
+      "node_id": "approval_1",
+      "decision": "maybe",
+      "decided_by": "finance-manager@example.com",
+      "decided_at": "2026-04-14T10:00:03Z"
+    }
+  ],
+  "evidence": [],
+  "integrity": {
+    "chain_hash": "sha256:test"
+  },
+  "extensions": {}
+}

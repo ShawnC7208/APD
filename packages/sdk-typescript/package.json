@@ -1,0 +1,61 @@
+{
+  "name": "@apd-spec/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript-friendly SDK for APD procedure definitions, workflow specifications, agent workflows, SOP export, and AER comparison",
+  "license": "Apache-2.0",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "schema",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "require": "./index.js",
+      "default": "./index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "sync-schema": "node scripts/sync-schema.js",
+    "pretest": "npm run sync-schema",
+    "prepack": "npm run sync-schema",
+    "test": "node test/run-tests.js"
+  },
+  "keywords": [
+    "apd",
+    "agent-procedure-definition",
+    "procedure-definition",
+    "workflow-specification",
+    "agent-workflow",
+    "approval-workflow",
+    "provenance",
+    "sop",
+    "sdk",
+    "typescript",
+    "json-schema",
+    "workflow"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ShawnC7208/APD.git",
+    "directory": "packages/sdk-typescript"
+  },
+  "homepage": "https://github.com/ShawnC7208/APD#readme",
+  "bugs": {
+    "url": "https://github.com/ShawnC7208/APD/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}

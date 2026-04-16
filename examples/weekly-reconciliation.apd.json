@@ -1,0 +1,212 @@
+{
+  "kind": "agent-procedure",
+  "spec_version": "0.1.0",
+  "procedure_id": "weekly-source-reconciliation",
+  "revision": "1",
+  "title": "Weekly Source Reconciliation",
+  "summary": "Compare two weekly data exports, log discrepancies, and update the reconciliation tracker.",
+  "entry_conditions": [
+    "The weekly exports from both systems are available."
+  ],
+  "inputs_schema": {
+    "type": "object",
+    "properties": {
+      "source_a_export": {
+        "type": "string",
+        "description": "File path for the source A export."
+      },
+      "source_b_export": {
+        "type": "string",
+        "description": "File path for the source B export."
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputs_schema": {
+    "type": "object",
+    "properties": {
+      "discrepancy_count": {
+        "type": "number",
+        "description": "Number of discrepancies found during reconciliation."
+      },
+      "tracker_status": {
+        "type": "string",
+        "description": "Status recorded in the reconciliation tracker."
+      }
+    },
+    "additionalProperties": false
+  },
+  "entities": [
+    {
+      "id": "file_source_a",
+      "type": "file",
+      "name": "Source A export",
+      "description": "Primary system export for reconciliation."
+    },
+    {
+      "id": "file_source_b",
+      "type": "file",
+      "name": "Source B export",
+      "description": "Comparison export for reconciliation."
+    },
+    {
+      "id": "record_reconciliation_log",
+      "type": "record",
+      "name": "Reconciliation Tracker",
+      "description": "Log that captures the result of the weekly reconciliation."
+    }
+  ],
+  "procedure": {
+    "start_node": "step_1",
+    "nodes": [
+      {
+        "id": "step_1",
+        "type": "action",
+        "name": "Load both exports",
+        "instruction": "Open the weekly export files from source A and source B so their records can be compared.",
+        "uses": ["source_a_export", "source_b_export"],
+        "completion_checks": [
+          "Both exports are accessible and ready for comparison."
+        ],
+        "recovery": {
+          "strategy": "retry",
+          "instructions": "Retry loading the exports once and stop for review if either source file remains unavailable or unreadable."
+        },
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      },
+      {
+        "id": "step_2",
+        "type": "action",
+        "name": "Compare records",
+        "instruction": "Compare the exports row by row and identify any missing, mismatched, or duplicate records.",
+        "produces": ["discrepancy_count"],
+        "completion_checks": [
+          "Any discrepancies between the two exports have been listed."
+        ],
+        "recovery": {
+          "strategy": "fallback",
+          "instructions": "If direct comparison is blocked by formatting differences, normalize both exports to a shared column set before continuing."
+        },
+        "risk": {
+          "level": "low",
+          "irreversible": false,
+          "confirmation_required": false,
+          "reason": "The comparison is read-only until the log is updated."
+        },
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      },
+      {
+        "id": "decision_1",
+        "type": "decision",
+        "name": "Were discrepancies found?",
+        "question": "Does the comparison produce any missing, mismatched, or duplicate records?",
+        "evaluation_hint": "Treat any non-zero discrepancy count as a discrepancy case.",
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      },
+      {
+        "id": "step_3",
+        "type": "action",
+        "name": "Update reconciliation tracker",
+        "instruction": "Record the weekly reconciliation result in the tracker, including the discrepancy count and any follow-up needed.",
+        "uses": ["discrepancy_count"],
+        "produces": ["tracker_status"],
+        "completion_checks": [
+          "The reconciliation tracker shows the current week's status."
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "Pause for review if the discrepancy count cannot be reconciled with the tracker entry or the tracker is locked."
+        },
+        "risk": {
+          "level": "medium",
+          "irreversible": false,
+          "confirmation_required": false,
+          "reason": "Tracker updates are operationally important but can be corrected."
+        },
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      },
+      {
+        "id": "done_clean",
+        "type": "terminal",
+        "name": "Reconciliation completed without discrepancies",
+        "outcome": "success",
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      },
+      {
+        "id": "done_flagged",
+        "type": "terminal",
+        "name": "Reconciliation completed with discrepancies flagged",
+        "outcome": "success",
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      }
+    ],
+    "transitions": [
+      {
+        "from": "step_1",
+        "to": "step_2",
+        "default": true,
+        "observed_vs_inferred": "authored"
+      },
+      {
+        "from": "step_2",
+        "to": "decision_1",
+        "default": true,
+        "observed_vs_inferred": "authored"
+      },
+      {
+        "from": "decision_1",
+        "to": "step_3",
+        "condition": "Discrepancies were found and need to be logged",
+        "default": false,
+        "observed_vs_inferred": "authored"
+      },
+      {
+        "from": "decision_1",
+        "to": "done_clean",
+        "condition": "No discrepancies were found",
+        "default": false,
+        "observed_vs_inferred": "authored"
+      },
+      {
+        "from": "step_3",
+        "to": "done_flagged",
+        "default": true,
+        "observed_vs_inferred": "authored"
+      }
+    ]
+  },
+  "provenance": {
+    "producer": "apd-editor",
+    "source_type": "authored",
+    "created_at": "2026-04-12T11:00:00Z",
+    "confidence": {
+      "overall": 1,
+      "per_node": [
+        {
+          "node_id": "step_1",
+          "confidence": 1
+        },
+        {
+          "node_id": "step_2",
+          "confidence": 1
+        },
+        {
+          "node_id": "decision_1",
+          "confidence": 1
+        },
+        {
+          "node_id": "step_3",
+          "confidence": 1
+        }
+      ]
+    },
+    "observed_vs_inferred_summary": "This APD was written directly by a human author and does not depend on capture-session provenance."
+  },
+  "extensions": {}
+}

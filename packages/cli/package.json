@@ -1,0 +1,50 @@
+{
+  "name": "@apd-spec/cli",
+  "version": "0.1.0",
+  "description": "CLI for creating, validating, comparing, visualizing, and exporting APD procedure definitions and AER receipts",
+  "license": "Apache-2.0",
+  "bin": {
+    "apd": "./bin/apd.js",
+    "apd-validate": "./bin/apd-validate.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node test/run-tests.js"
+  },
+  "keywords": [
+    "apd",
+    "agent-procedure-definition",
+    "procedure-definition",
+    "workflow-specification",
+    "agent-workflow",
+    "approval-workflow",
+    "provenance",
+    "sop",
+    "cli",
+    "validator",
+    "workflow"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ShawnC7208/APD.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/ShawnC7208/APD#readme",
+  "bugs": {
+    "url": "https://github.com/ShawnC7208/APD/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@apd-spec/sdk": "0.1.0"
+  }
+}

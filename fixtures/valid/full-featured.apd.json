@@ -1,0 +1,129 @@
+{
+  "kind": "agent-procedure",
+  "spec_version": "0.1.0",
+  "procedure_id": "full-featured-procedure",
+  "revision": "1",
+  "title": "Full Featured Procedure",
+  "summary": "Fixture that exercises most optional APD fields.",
+  "entry_conditions": [
+    "A fully populated test fixture is needed."
+  ],
+  "inputs_schema": {
+    "type": "object",
+    "properties": {
+      "record_id": {
+        "type": "string",
+        "description": "Record identifier."
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputs_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "description": "Final status."
+      }
+    },
+    "additionalProperties": false
+  },
+  "entities": [
+    {
+      "id": "record_1",
+      "type": "record",
+      "name": "Primary Record",
+      "description": "Fixture record.",
+      "source_hint": "Loaded from a test source.",
+      "observed_value": "REC-001"
+    }
+  ],
+  "procedure": {
+    "start_node": "step_1",
+    "nodes": [
+      {
+        "id": "step_1",
+        "type": "action",
+        "name": "Load record",
+        "instruction": "Open the record and inspect its current state.",
+        "uses": ["record_id"],
+        "produces": ["status"],
+        "context_hints": [
+          {
+            "type": "application",
+            "value": "Fixture Console"
+          },
+          {
+            "type": "url",
+            "value": "https://example.test/records"
+          }
+        ],
+        "pre_state_checks": [
+          "The fixture console is available."
+        ],
+        "completion_checks": [
+          "The record is visible."
+        ],
+        "recovery": {
+          "strategy": "retry",
+          "instructions": "Retry once after refreshing the console."
+        },
+        "risk": {
+          "level": "low",
+          "irreversible": false,
+          "confirmation_required": false,
+          "reason": "Read-only inspection."
+        },
+        "evidence": [
+          {
+            "type": "screenshot",
+            "reference": "fixtures/full-featured-step-1.png"
+          }
+        ],
+        "observed_vs_inferred": "observed",
+        "extensions": {
+          "fixture": {
+            "notes": "Covers optional action fields."
+          }
+        }
+      },
+      {
+        "id": "done",
+        "type": "terminal",
+        "name": "Finished",
+        "outcome": "success",
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      }
+    ],
+    "transitions": [
+      {
+        "from": "step_1",
+        "to": "done",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      }
+    ]
+  },
+  "provenance": {
+    "producer": "fixture-generator",
+    "source_type": "observed",
+    "source_session_id": "fixture_session_full",
+    "created_at": "2026-04-12T12:45:00Z",
+    "capture_scope": {
+      "applications": ["Fixture Console"],
+      "key_files": ["fixture-playbook.md"]
+    },
+    "confidence": {
+      "overall": 0.92,
+      "per_node": [
+        {
+          "node_id": "step_1",
+          "confidence": 0.92
+        }
+      ]
+    },
+    "observed_vs_inferred_summary": "Observed fixture covering a wide range of fields."
+  },
+  "extensions": {}
+}

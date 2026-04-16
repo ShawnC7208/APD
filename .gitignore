@@ -1,0 +1,14 @@
+.DS_Store
+.claude/
+node_modules/
+dist/
+coverage/
+*.log
+*.tgz
+.npm/
+.vscode/
+.idea/
+*.swp
+*.swo
+.env
+.env.local

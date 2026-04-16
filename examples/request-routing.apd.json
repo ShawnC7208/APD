@@ -1,0 +1,237 @@
+{
+  "kind": "agent-procedure",
+  "spec_version": "0.1.0",
+  "procedure_id": "route-support-request",
+  "revision": "1",
+  "title": "Route Incoming Support Request",
+  "summary": "Review a new support request, determine its priority, and route it to the correct queue.",
+  "entry_conditions": [
+    "A new support request appears in the intake queue."
+  ],
+  "inputs_schema": {
+    "type": "object",
+    "properties": {
+      "ticket_id": {
+        "type": "string",
+        "description": "Unique identifier for the incoming support request."
+      },
+      "request_text": {
+        "type": "string",
+        "description": "The request body submitted by the user."
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputs_schema": {
+    "type": "object",
+    "properties": {
+      "assigned_queue": {
+        "type": "string",
+        "description": "The queue selected for follow-up."
+      },
+      "priority": {
+        "type": "string",
+        "description": "The priority chosen during triage."
+      }
+    },
+    "additionalProperties": false
+  },
+  "entities": [
+    {
+      "id": "queue_urgent",
+      "type": "queue",
+      "name": "Urgent Escalations",
+      "description": "Queue for requests requiring immediate response.",
+      "source_hint": "Observed in the support routing console."
+    },
+    {
+      "id": "queue_standard",
+      "type": "queue",
+      "name": "Standard Support",
+      "description": "Queue for routine customer issues.",
+      "source_hint": "Observed in the support routing console."
+    }
+  ],
+  "procedure": {
+    "start_node": "step_1",
+    "nodes": [
+      {
+        "id": "step_1",
+        "type": "action",
+        "name": "Open the intake ticket",
+        "instruction": "Open the new support request and review the subject, request text, and requester account details.",
+        "uses": ["ticket_id"],
+        "produces": ["request_text"],
+        "completion_checks": [
+          "The ticket details are visible and ready for review."
+        ],
+        "recovery": {
+          "strategy": "retry",
+          "instructions": "Retry loading the ticket once and stop for review if the intake record still cannot be opened."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "step_2",
+        "type": "action",
+        "name": "Capture routing context",
+        "instruction": "Identify any severity indicators, affected product area, and customer impact described in the request.",
+        "uses": ["request_text"],
+        "completion_checks": [
+          "Severity indicators and product area have been noted."
+        ],
+        "context_hints": [
+          {
+            "type": "application",
+            "value": "Support Console"
+          }
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "Ask the user for direction if severity, impact, or product area cannot be determined confidently from the ticket."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "decision_1",
+        "type": "decision",
+        "name": "Is this request urgent?",
+        "question": "Does the request indicate production impact, security risk, or executive escalation?",
+        "evaluation_hint": "Treat outages, security incidents, and blocked revenue workflows as urgent.",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "step_3",
+        "type": "action",
+        "name": "Route to standard queue",
+        "instruction": "Assign the request to the standard support queue and note the selected priority.",
+        "produces": ["assigned_queue", "priority"],
+        "completion_checks": [
+          "The request is assigned to Standard Support with a non-urgent priority."
+        ],
+        "recovery": {
+          "strategy": "retry",
+          "instructions": "Retry the queue assignment once and stop for review if the ticket still cannot be routed to the standard queue."
+        },
+        "risk": {
+          "level": "low",
+          "irreversible": false,
+          "confirmation_required": false,
+          "reason": "Queue assignment can be changed later if needed."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "step_4",
+        "type": "action",
+        "name": "Route to urgent queue",
+        "instruction": "Assign the request to the urgent escalation queue and mark it for immediate follow-up.",
+        "produces": ["assigned_queue", "priority"],
+        "completion_checks": [
+          "The request is assigned to Urgent Escalations with urgent priority."
+        ],
+        "recovery": {
+          "strategy": "fallback",
+          "instructions": "If the urgent queue is unavailable, record the urgent status and escalate to the on-call workflow for immediate follow-up."
+        },
+        "risk": {
+          "level": "medium",
+          "irreversible": false,
+          "confirmation_required": false,
+          "reason": "Urgent routing changes queue ownership and response expectations."
+        },
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "done_standard",
+        "type": "terminal",
+        "name": "Routed to standard queue",
+        "outcome": "success",
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "done_escalated",
+        "type": "terminal",
+        "name": "Escalated for urgent handling",
+        "outcome": "success",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      }
+    ],
+    "transitions": [
+      {
+        "from": "step_1",
+        "to": "step_2",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "step_2",
+        "to": "decision_1",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "decision_1",
+        "to": "step_3",
+        "condition": "Request is routine and does not require immediate escalation",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "decision_1",
+        "to": "step_4",
+        "condition": "Request indicates urgent impact or escalation criteria",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "step_3",
+        "to": "done_standard",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "step_4",
+        "to": "done_escalated",
+        "default": true,
+        "observed_vs_inferred": "inferred"
+      }
+    ]
+  },
+  "provenance": {
+    "producer": "capture-system",
+    "source_type": "observed",
+    "source_session_id": "session_support_triage_014",
+    "created_at": "2026-04-12T09:30:00Z",
+    "capture_scope": {
+      "applications": ["Support Console", "Customer CRM"],
+      "key_files": ["support-triage-playbook.md"]
+    },
+    "confidence": {
+      "overall": 0.86,
+      "per_node": [
+        {
+          "node_id": "step_1",
+          "confidence": 0.95
+        },
+        {
+          "node_id": "step_2",
+          "confidence": 0.9
+        },
+        {
+          "node_id": "decision_1",
+          "confidence": 0.69
+        }
+      ]
+    },
+    "observed_vs_inferred_summary": "Ticket review and queue assignment were observed. Urgency classification logic was inferred from the routing outcome and playbook guidance."
+  },
+  "extensions": {}
+}

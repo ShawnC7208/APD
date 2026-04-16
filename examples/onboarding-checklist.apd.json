@@ -1,0 +1,184 @@
+{
+  "kind": "agent-procedure",
+  "spec_version": "0.1.0",
+  "procedure_id": "employee-onboarding-checklist",
+  "revision": "1",
+  "title": "Employee Onboarding Checklist",
+  "summary": "Convert a basic onboarding checklist into an APD graph that coordinates account setup, equipment provisioning, and confirmation.",
+  "entry_conditions": [
+    "A new employee onboarding request has been approved."
+  ],
+  "inputs_schema": {
+    "type": "object",
+    "properties": {
+      "employee_name": {
+        "type": "string",
+        "description": "Name of the employee being onboarded."
+      },
+      "start_date": {
+        "type": "string",
+        "format": "date",
+        "description": "Employee start date."
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputs_schema": {
+    "type": "object",
+    "properties": {
+      "account_status": {
+        "type": "string",
+        "description": "Status of account provisioning."
+      },
+      "equipment_status": {
+        "type": "string",
+        "description": "Status of equipment readiness."
+      }
+    },
+    "additionalProperties": false
+  },
+  "entities": [
+    {
+      "id": "artifact_bpmn",
+      "type": "document",
+      "name": "onboarding-checklist.bpmn",
+      "description": "Original BPMN diagram used as the source for conversion.",
+      "source_hint": "Process modeling repository export."
+    }
+  ],
+  "procedure": {
+    "start_node": "step_1",
+    "nodes": [
+      {
+        "id": "step_1",
+        "type": "action",
+        "name": "Create core accounts",
+        "instruction": "Create the employee's email, chat, and HR system accounts using the approved onboarding request.",
+        "uses": ["employee_name", "start_date"],
+        "completion_checks": [
+          "Core accounts exist for the new employee."
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "Pause for review if account data conflicts across systems or an account already exists unexpectedly."
+        },
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      },
+      {
+        "id": "step_2",
+        "type": "action",
+        "name": "Prepare equipment",
+        "instruction": "Reserve and configure the employee laptop and required accessories.",
+        "completion_checks": [
+          "Assigned equipment is ready for handoff."
+        ],
+        "recovery": {
+          "strategy": "fallback",
+          "instructions": "If the preferred hardware is unavailable, reserve the standard backup device and record the exception for follow-up."
+        },
+        "risk": {
+          "level": "medium",
+          "irreversible": false,
+          "confirmation_required": false,
+          "reason": "Provisioning changes asset assignment but can be corrected."
+        },
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      },
+      {
+        "id": "approval_1",
+        "type": "approval",
+        "name": "Confirm onboarding packet",
+        "approval_required": true,
+        "reason": "HR confirms that all onboarding steps are complete before notifying the new employee.",
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      },
+      {
+        "id": "step_3",
+        "type": "action",
+        "name": "Send readiness confirmation",
+        "instruction": "Send the onboarding readiness confirmation to the employee and hiring manager.",
+        "completion_checks": [
+          "The readiness confirmation has been sent."
+        ],
+        "recovery": {
+          "strategy": "abort",
+          "instructions": "Do not send the confirmation until the recipients, equipment status, and start date are verified."
+        },
+        "risk": {
+          "level": "high",
+          "irreversible": true,
+          "confirmation_required": true,
+          "reason": "Sending the confirmation affects external communication timing."
+        },
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      },
+      {
+        "id": "done",
+        "type": "terminal",
+        "name": "Onboarding preparation complete",
+        "outcome": "success",
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      }
+    ],
+    "transitions": [
+      {
+        "from": "step_1",
+        "to": "step_2",
+        "default": true,
+        "observed_vs_inferred": "authored"
+      },
+      {
+        "from": "step_2",
+        "to": "approval_1",
+        "default": true,
+        "observed_vs_inferred": "authored"
+      },
+      {
+        "from": "approval_1",
+        "to": "step_3",
+        "default": true,
+        "observed_vs_inferred": "authored"
+      },
+      {
+        "from": "step_3",
+        "to": "done",
+        "default": true,
+        "observed_vs_inferred": "authored"
+      }
+    ]
+  },
+  "provenance": {
+    "producer": "apd-converter",
+    "source_type": "converted",
+    "created_at": "2026-04-12T12:00:00Z",
+    "confidence": {
+      "overall": 0.79,
+      "per_node": [
+        {
+          "node_id": "step_1",
+          "confidence": 0.82
+        },
+        {
+          "node_id": "step_2",
+          "confidence": 0.78
+        },
+        {
+          "node_id": "approval_1",
+          "confidence": 0.8
+        }
+      ]
+    },
+    "observed_vs_inferred_summary": "This APD was converted from a BPMN onboarding checklist and then normalized into APD node semantics."
+  },
+  "extensions": {
+    "conversion": {
+      "source_format": "bpmn",
+      "source_artifact": "onboarding-checklist.bpmn"
+    }
+  }
+}

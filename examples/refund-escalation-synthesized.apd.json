@@ -1,0 +1,265 @@
+{
+  "kind": "agent-procedure",
+  "spec_version": "0.1.0",
+  "procedure_id": "refund-escalation-synthesized",
+  "revision": "1",
+  "title": "Refund Escalation from Observed Support Session",
+  "summary": "Review a refund ticket, determine whether it is within policy, request approval when needed, and send the customer resolution.",
+  "entry_conditions": [
+    "A refund request ticket is open and the relevant order is available for review."
+  ],
+  "inputs_schema": {
+    "type": "object",
+    "properties": {
+      "ticket_id": {
+        "type": "string",
+        "description": "Identifier for the support ticket under review."
+      },
+      "order_id": {
+        "type": "string",
+        "description": "Identifier for the customer order tied to the refund request."
+      },
+      "customer_email": {
+        "type": "string",
+        "format": "email",
+        "description": "Customer email address used for the final resolution message."
+      },
+      "refund_amount": {
+        "type": "number",
+        "description": "Requested refund amount from the captured session."
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputs_schema": {
+    "type": "object",
+    "properties": {
+      "refund_status": {
+        "type": "string",
+        "description": "Final refund disposition recorded for the ticket."
+      },
+      "resolution_message_sent": {
+        "type": "boolean",
+        "description": "Whether the customer resolution message was sent."
+      }
+    },
+    "additionalProperties": false
+  },
+  "entities": [
+    {
+      "id": "ticketing_app",
+      "type": "application",
+      "name": "Support Console",
+      "description": "Browser-based ticketing system observed during the capture."
+    },
+    {
+      "id": "orders_app",
+      "type": "application",
+      "name": "Orders Admin",
+      "description": "Internal tool used to verify the order and issue the refund."
+    }
+  ],
+  "procedure": {
+    "start_node": "step_1",
+    "nodes": [
+      {
+        "id": "step_1",
+        "type": "action",
+        "name": "Review refund ticket",
+        "instruction": "Open the refund ticket, read the customer request, and confirm the refund amount, order ID, and customer email.",
+        "uses": ["ticket_id"],
+        "produces": ["order_id", "customer_email", "refund_amount"],
+        "completion_checks": [
+          "The refund amount, order ID, and customer email are visible from the ticket."
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "Pause for review if the ticket does not clearly identify the refund amount, order, or customer contact details."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "step_2",
+        "type": "action",
+        "name": "Check order history",
+        "instruction": "Open the order in the admin tool and verify that the order is eligible for refund handling.",
+        "uses": ["order_id"],
+        "produces": ["order_status"],
+        "pre_state_checks": [
+          "The support ticket is open and the order ID is known."
+        ],
+        "completion_checks": [
+          "The order status and refund eligibility context are visible."
+        ],
+        "recovery": {
+          "strategy": "retry",
+          "instructions": "Retry the order lookup once and stop for review if the order still cannot be opened or matched."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "decision_1",
+        "type": "decision",
+        "name": "Refund within policy threshold?",
+        "question": "Is the refund request within the auto-approval policy and consistent with the observed order status?",
+        "evaluation_hint": "Compare the requested refund amount and order status against the refund policy threshold that support agents normally follow.",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "approval_1",
+        "type": "approval",
+        "name": "Request supervisor approval",
+        "approval_required": true,
+        "reason": "Refunds outside the policy threshold require explicit supervisor approval before issuing the refund.",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "step_3",
+        "type": "action",
+        "name": "Issue refund",
+        "instruction": "Issue the refund in the order admin tool and record the resulting refund status.",
+        "uses": ["order_id", "refund_amount"],
+        "produces": ["refund_status"],
+        "completion_checks": [
+          "The refund is recorded in the order admin tool."
+        ],
+        "recovery": {
+          "strategy": "abort",
+          "instructions": "Do not issue the refund if the order, amount, or approval state cannot be verified confidently."
+        },
+        "risk": {
+          "level": "high",
+          "irreversible": false,
+          "confirmation_required": true,
+          "reason": "Issuing a refund changes a customer-facing financial record."
+        },
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      },
+      {
+        "id": "step_4",
+        "type": "action",
+        "name": "Send customer resolution",
+        "instruction": "Send the customer a reply that confirms the refund outcome and any next steps.",
+        "uses": ["customer_email", "refund_status"],
+        "completion_checks": [
+          "The customer-facing resolution message is ready to send and reflects the final refund status."
+        ],
+        "recovery": {
+          "strategy": "ask-user",
+          "instructions": "Pause for review if the final refund status is unclear or the customer response needs a non-standard explanation."
+        },
+        "risk": {
+          "level": "medium",
+          "irreversible": true,
+          "confirmation_required": true,
+          "reason": "The outbound resolution message commits the support team to the communicated refund outcome."
+        },
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "done",
+        "type": "terminal",
+        "name": "Refund handled",
+        "outcome": "success",
+        "observed_vs_inferred": "observed",
+        "extensions": {}
+      },
+      {
+        "id": "not_approved",
+        "type": "terminal",
+        "name": "Refund paused pending approval",
+        "outcome": "canceled",
+        "observed_vs_inferred": "inferred",
+        "extensions": {}
+      }
+    ],
+    "transitions": [
+      {
+        "from": "step_1",
+        "to": "step_2",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "step_2",
+        "to": "decision_1",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "decision_1",
+        "to": "step_3",
+        "condition": "refund is within policy threshold",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "decision_1",
+        "to": "approval_1",
+        "condition": "refund exceeds policy threshold or order context is ambiguous",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "approval_1",
+        "to": "step_3",
+        "condition": "approval granted",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "approval_1",
+        "to": "not_approved",
+        "condition": "approval denied",
+        "default": false,
+        "observed_vs_inferred": "inferred"
+      },
+      {
+        "from": "step_3",
+        "to": "step_4",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      },
+      {
+        "from": "step_4",
+        "to": "done",
+        "default": true,
+        "observed_vs_inferred": "observed"
+      }
+    ]
+  },
+  "provenance": {
+    "producer": "capture-synthesizer-demo",
+    "source_type": "observed",
+    "source_session_id": "session_support_refund_021",
+    "created_at": "2026-04-14T15:30:00Z",
+    "capture_scope": {
+      "applications": ["Support Console", "Orders Admin", "Gmail"],
+      "key_files": ["refund-policy.md"]
+    },
+    "confidence": {
+      "overall": 0.79,
+      "per_node": [
+        { "node_id": "step_1", "confidence": 0.96 },
+        { "node_id": "step_2", "confidence": 0.91 },
+        { "node_id": "decision_1", "confidence": 0.64 },
+        { "node_id": "approval_1", "confidence": 0.61 },
+        { "node_id": "step_3", "confidence": 0.67 },
+        { "node_id": "step_4", "confidence": 0.88 }
+      ]
+    },
+    "observed_vs_inferred_summary": "Ticket review, order lookup, and customer messaging were directly observed. Policy threshold routing, supervisor approval logic, and the denial branch were inferred during synthesis and intentionally left with lower review confidence."
+  },
+  "extensions": {
+    "review_notes": [
+      "Reviewer flagged the policy threshold branch for additional scrutiny before runtime use.",
+      "Approval denial handling was synthesized because the capture only showed the approved case."
+    ]
+  }
+}

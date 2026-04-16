@@ -1,0 +1,59 @@
+{
+  "kind": "agent-procedure",
+  "spec_version": "0.1.0",
+  "procedure_id": "approval-false",
+  "revision": "1",
+  "title": "Approval False",
+  "summary": "Invalid fixture with an approval node that does not require approval.",
+  "entry_conditions": [],
+  "inputs_schema": {
+    "type": "object",
+    "properties": {}
+  },
+  "outputs_schema": {
+    "type": "object",
+    "properties": {}
+  },
+  "entities": [],
+  "procedure": {
+    "start_node": "approval_1",
+    "nodes": [
+      {
+        "id": "approval_1",
+        "type": "approval",
+        "name": "Approval set to false",
+        "approval_required": false,
+        "reason": "This should fail because approval nodes must require approval.",
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      },
+      {
+        "id": "done",
+        "type": "terminal",
+        "name": "Done",
+        "outcome": "success",
+        "observed_vs_inferred": "authored",
+        "extensions": {}
+      }
+    ],
+    "transitions": [
+      {
+        "from": "approval_1",
+        "to": "done",
+        "default": true,
+        "observed_vs_inferred": "authored"
+      }
+    ]
+  },
+  "provenance": {
+    "producer": "fixture-generator",
+    "source_type": "authored",
+    "created_at": "2026-04-13T10:04:00Z",
+    "confidence": {
+      "overall": 1,
+      "per_node": []
+    },
+    "observed_vs_inferred_summary": "Invalid fixture."
+  },
+  "extensions": {}
+}

@@ -1,0 +1,58 @@
+{
+  "kind": "agent-execution-record",
+  "spec_version": "0.2.0",
+  "execution_id": "exec_invoice_logging_mismatch",
+  "procedure_ref": {
+    "kind": "agent-procedure",
+    "procedure_id": "wrong-procedure-id",
+    "revision": "99",
+    "spec_version": "0.1.0"
+  },
+  "executor": {
+    "agent": "claude-sonnet-4.5",
+    "adapter": "apd-strands-reference",
+    "environment": "local-demo"
+  },
+  "started_at": "2026-04-14T16:00:00Z",
+  "completed_at": "2026-04-14T16:00:08Z",
+  "overall_outcome": "success",
+  "node_executions": [
+    {
+      "node_id": "step_1",
+      "entered_at": "2026-04-14T16:00:00Z",
+      "exited_at": "2026-04-14T16:00:05Z",
+      "outcome": "completed",
+      "attempt": 1,
+      "completion_check_results": [
+        {
+          "check": "The vendor name, amount, and sender email have been identified.",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "node_id": "done",
+      "entered_at": "2026-04-14T16:00:06Z",
+      "exited_at": "2026-04-14T16:00:08Z",
+      "outcome": "completed",
+      "attempt": 1
+    }
+  ],
+  "transitions_taken": [
+    {
+      "from": "step_1",
+      "to": "done",
+      "taken_at": "2026-04-14T16:00:06Z"
+    }
+  ],
+  "approvals": [],
+  "evidence": [],
+  "final_outputs": {
+    "tracker_row": "April!B42",
+    "confirmation_sent": "sent"
+  },
+  "integrity": {
+    "chain_hash": "sha256:test-mismatch"
+  },
+  "extensions": {}
+}

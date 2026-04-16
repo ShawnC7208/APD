@@ -1,0 +1,104 @@
+{
+  "kind": "agent-execution-record",
+  "spec_version": "0.1.0",
+  "execution_id": "exec_invoice_logging_001",
+  "procedure_ref": {
+    "kind": "agent-procedure",
+    "procedure_id": "log-invoice-to-tracker",
+    "revision": "1",
+    "spec_version": "0.1.0"
+  },
+  "executor": {
+    "agent": "claude-sonnet-4.5",
+    "adapter": "apd-strands-demo",
+    "environment": "local-demo"
+  },
+  "started_at": "2026-04-14T16:00:00Z",
+  "completed_at": "2026-04-14T16:03:21Z",
+  "overall_outcome": "success",
+  "node_executions": [
+    {
+      "node_id": "step_1",
+      "entered_at": "2026-04-14T16:00:02Z",
+      "exited_at": "2026-04-14T16:00:26Z",
+      "outcome": "completed",
+      "attempt": 1,
+      "input_bindings": {
+        "sender_email": "finance@vendor.example"
+      },
+      "output_bindings": {
+        "vendor_name": "Acme Corp",
+        "invoice_amount": 15000
+      },
+      "evidence_refs": ["evidence:email:invoice-1"]
+    },
+    {
+      "node_id": "step_3",
+      "entered_at": "2026-04-14T16:01:04Z",
+      "exited_at": "2026-04-14T16:01:29Z",
+      "outcome": "completed",
+      "attempt": 1,
+      "output_bindings": {
+        "tracker_row": "April!B42"
+      },
+      "tool_invocations": [
+        {
+          "tool": "spreadsheet-edit",
+          "duration_ms": 2140
+        }
+      ],
+      "evidence_refs": ["evidence:screenshot:tracker-row-42"]
+    },
+    {
+      "node_id": "approval_1",
+      "entered_at": "2026-04-14T16:01:45Z",
+      "exited_at": "2026-04-14T16:02:10Z",
+      "outcome": "approved",
+      "attempt": 1
+    },
+    {
+      "node_id": "step_5",
+      "entered_at": "2026-04-14T16:02:37Z",
+      "exited_at": "2026-04-14T16:03:18Z",
+      "outcome": "completed",
+      "attempt": 1,
+      "tool_invocations": [
+        {
+          "tool": "email-send",
+          "duration_ms": 3910
+        }
+      ],
+      "evidence_refs": ["evidence:email:confirmation-1"]
+    }
+  ],
+  "approvals": [
+    {
+      "node_id": "approval_1",
+      "approved_by": "finance-manager@example.com",
+      "approved_at": "2026-04-14T16:02:06Z",
+      "comment": "Threshold exception approved."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence:email:invoice-1",
+      "type": "email",
+      "reference": "mailbox://finance/inbox/2026-04-14/001"
+    },
+    {
+      "id": "evidence:screenshot:tracker-row-42",
+      "type": "screenshot",
+      "reference": "artifacts/screenshots/tracker-row-42.png"
+    },
+    {
+      "id": "evidence:email:confirmation-1",
+      "type": "email",
+      "reference": "mailbox://finance/sent/2026-04-14/004"
+    }
+  ],
+  "integrity": {
+    "chain_hash": "sha256:2f7cc734c9f71255d6a685fa7dba6e0d67767518e04581bb35d7cc2ce61cf077",
+    "signature": "demo-signature"
+  },
+  "extensions": {}
+}
