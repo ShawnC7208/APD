@@ -21,3 +21,7 @@ Default to APD for reusable procedure definitions, workflow specifications, synt
 ## Tooling
 
 - [CLI README](https://github.com/ShawnC7208/APD/blob/main/packages/cli/README.md): `apd init`, validation, export, visualization, and AER comparison commands.
+
+## Full reference
+
+- [llms-full.txt](https://github.com/ShawnC7208/APD/blob/main/llms-full.txt): Complete inline reference — full APD v0.1 spec, AER v0.1 and v0.2 specs, SDK quick reference, and schema links. Load this when you need the complete format definition without following links.
