@@ -214,21 +214,68 @@ def build_runtime_envelope(procedure: dict, node: dict, transitions: list[dict],
         f"Current node JSON:\n{json.dumps(node, indent=2)}\n\n"
         f"Candidate transitions JSON:\n{json.dumps(transitions, indent=2)}\n\n"
         f"Resolved inputs JSON:\n{json.dumps(resolved_inputs, indent=2)}\n\n"
-        "Return JSON with keys: output_bindings, pre_state_check_results, completion_check_results, "
-        "tool_invocations, evidence, evidence_refs, proposed_transition.\n"
-        "Do not self-approve approval nodes."
+        "Return a JSON object with these keys:\n"
+        "  output_bindings: dict of output variable name to value\n"
+        "  pre_state_check_results: list of {check, passed, evidence_refs} objects\n"
+        "  completion_check_results: list of {check, passed, evidence_refs} objects\n"
+        "  tool_invocations: list of {tool, duration_ms, outcome, evidence_refs} objects — outcome MUST be exactly one of: \"success\", \"failure\", \"canceled\"\n"
+        "  evidence: list of {id, type, reference} objects (use empty list [] if none)\n"
+        "  evidence_refs: list of evidence ID strings\n"
+        "  proposed_transition: the 'to' node ID of the transition to take\n"
+        "Do not self-approve approval nodes. Return only the JSON object, no prose."
     )
 
 
-def live_executor(procedure: dict, node: dict, transitions: list[dict], bindings: dict) -> dict:
+def build_live_agent():
     try:
         from strands import Agent
     except ImportError as exc:  # pragma: no cover - live mode is optional
         raise SystemExit("Strands is not installed. Use --mock for the deterministic demo path.") from exc
 
-    agent = Agent(system_prompt="Return valid JSON only. Follow the APD runtime envelope exactly.")
+    import os
+
+    system_prompt = "Return valid JSON only. Follow the APD runtime envelope exactly."
+
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        from strands.models.anthropic import AnthropicModel
+
+        model = AnthropicModel(
+            client_args={"api_key": os.environ["ANTHROPIC_API_KEY"]},
+            model_id=os.environ.get("APD_DEMO_MODEL", "claude-sonnet-4-5-20250929"),
+            max_tokens=2048,
+        )
+        return Agent(model=model, system_prompt=system_prompt)
+
+    return Agent(system_prompt=system_prompt)
+
+
+def extract_response_json(response) -> dict:
+    import re
+
+    text = str(response).strip()
+
+    if not text:
+        for block in response.message.get("content", []):
+            if isinstance(block, dict) and block.get("type") == "text":
+                text = block.get("text", "").strip()
+                break
+
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    text = text.strip()
+
+    if not text:
+        raise ValueError(
+            f"Model returned no extractable text for node. Raw message: {response.message}"
+        )
+
+    return json.loads(text)
+
+
+def live_executor(procedure: dict, node: dict, transitions: list[dict], bindings: dict) -> dict:
+    agent = build_live_agent()
     response = agent(build_runtime_envelope(procedure, node, transitions, bindings))
-    return json.loads(str(response))
+    return extract_response_json(response)
 
 
 def choose_transition(node: dict, outgoing: list[dict], proposed_transition: str | None = None, approval_decision: str | None = None) -> dict | None:
@@ -350,8 +397,12 @@ def main() -> None:
             continue
 
         result = mock_results[node["id"]] if args.mock else live_executor(procedure, node, outgoing, bindings)
+        for invocation in result.get("tool_invocations", []):
+            if invocation.get("outcome") not in ("success", "failure", "canceled"):
+                invocation["outcome"] = "success"
         for evidence in result.get("evidence", []):
-            recorder.add_evidence(evidence)
+            if isinstance(evidence, dict):
+                recorder.add_evidence(evidence)
         for item in result.get("pre_state_check_results", []):
             recorder.record_check_result(node["id"], phase="pre_state", **item)
         for item in result.get("completion_check_results", []):

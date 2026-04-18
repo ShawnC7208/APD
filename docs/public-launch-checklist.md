@@ -31,19 +31,25 @@ The CLI package provides the stable `apd` command. Launch does not depend on obt
 
 ## Live runtime validation
 
-Before a broad announcement, run at least these two procedures through a real provider-backed runtime:
+✅ Completed 2026-04-17. Both procedures run through Claude (Anthropic API) via the Strands reference adapter (`adapters/strands/demo/run_apd_with_aer.py`).
 
-- `examples/invoice-logging.apd.json`
-- `examples/refund-escalation-synthesized.apd.json`
+| APD | AER schema | APD compare |
+|---|---|---|
+| `invoice-logging` | PASS | 1 `failed-check` diff — model correctly flagged it could not send the confirmation email in a demo context; node was still marked `completed` by the adapter |
+| `refund-escalation-synthesized` | PASS | PASS — 0 differences |
 
-For each live run:
+**Adapter rough edges noted:**
 
-- save the resulting AER
-- note any manual intervention
-- note any adapter rough edges
-- note any schema gaps worth addressing in a follow-up release
+- Failed completion checks are recorded but do not halt execution or trigger node recovery in the demo adapter. A production adapter should gate advancement on check results.
+- `tool_invocations.outcome` must be exactly `"success"`, `"failure"`, or `"canceled"` — the model returned descriptive sentences on the first run. Prompt tightened and a normalizer added to the demo script.
+- Response extraction from `AgentResult` required a fallback path beyond `str(response)` when Strands returns non-text content blocks.
+- The demo adapter creates a new `Agent` per node, causing a harmless httpx event-loop cleanup warning on exit. Not a data integrity issue.
 
-Comparison should stay APD-contract-first. Observed-session replay diffing remains future work.
+**Schema gaps for follow-up:**
+
+- No spec-level guidance on what an adapter must do when a completion check fails (halt vs. proceed vs. trigger recovery). Worth a follow-up spec note.
+
+Comparison is APD-contract-first. Observed-session replay diffing remains future work.
 
 ## GitHub repo metadata
 

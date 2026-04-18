@@ -12,3 +12,4 @@ coverage/
 *.swo
 .env
 .env.local
+launch-validation/
