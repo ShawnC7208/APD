@@ -115,31 +115,6 @@ npm install @apd-spec/sdk
 
 If you want to inspect the checked-in examples, use the clone-based workflow below.
 
-## Work From A Clone
-
-Use the repo-local workflow for launch:
-
-```bash
-npm install
-npm run build
-node packages/cli/bin/apd.js validate examples/invoice-logging.apd.json
-node packages/cli/bin/apd.js export examples/invoice-logging.apd.json --format sop-md
-```
-
-To run the full repo gate:
-
-```bash
-npm test
-```
-
-That runs the SDK tests, CLI tests, and the smoke script that validates all examples and fixtures.
-
-Before publishing the npm packages, run the tarball-install smoke check:
-
-```bash
-npm run publish-smoke
-```
-
 ## What the exporter gives you
 
 The new CLI exporter turns APD into agent-sop-style markdown:
