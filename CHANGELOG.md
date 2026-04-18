@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+- Strands demo adapter (`adapters/strands/demo/run_apd_with_aer.py`): auto-detect `ANTHROPIC_API_KEY` and use `AnthropicModel` when present so the demo runs without AWS credentials; tightened runtime envelope prompt to enforce `tool_invocations.outcome` enum values; added robust `AgentResult` text extraction with markdown fence stripping; added evidence shape guard and outcome normalizer for live model responses.
+
 ## v0.1.0
 
 - Repositioned APD as the structured upstream format for machine-synthesized, human-reviewable procedures.
