@@ -14,6 +14,20 @@ Then import it in your project:
 const { APD, createApdScaffold, validateApd, validateAer, compareAerToApd, toSopMarkdown } = require("@apd-spec/sdk");
 ```
 
+## Entry points
+
+Use the entry point that matches your environment:
+
+- `@apd-spec/sdk` or `@apd-spec/sdk/node` for Node.js validation, schema loading, CLI helpers, and the full SDK surface
+- `@apd-spec/sdk/browser` for browser-safe APD parsing, APD types, and SOP markdown export without filesystem or schema-loading dependencies
+
+Example browser-safe import:
+
+```ts
+import type { APDDocument } from "@apd-spec/sdk/browser";
+import { toSopMarkdown } from "@apd-spec/sdk/browser";
+```
+
 If you are working from a local clone of this repo, run:
 
 ```bash

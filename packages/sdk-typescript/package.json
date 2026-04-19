@@ -8,6 +8,11 @@
   "files": [
     "index.js",
     "index.d.ts",
+    "browser.mjs",
+    "browser.js",
+    "browser.d.ts",
+    "node.js",
+    "node.d.ts",
     "schema",
     "README.md",
     "LICENSE"
@@ -17,6 +22,17 @@
       "types": "./index.d.ts",
       "require": "./index.js",
       "default": "./index.js"
+    },
+    "./browser": {
+      "types": "./browser.d.ts",
+      "import": "./browser.mjs",
+      "require": "./browser.js",
+      "default": "./browser.mjs"
+    },
+    "./node": {
+      "types": "./node.d.ts",
+      "require": "./node.js",
+      "default": "./node.js"
     }
   },
   "publishConfig": {

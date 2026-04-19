@@ -16,6 +16,7 @@ const {
   toMermaid,
   toSvg
 } = require("..");
+const browserSdk = require("../browser");
 
 const root = path.resolve(__dirname, "../../..");
 
@@ -55,6 +56,11 @@ function run() {
   const invoice = readJson("examples/invoice-logging.apd.json");
   const validation = validateApd(invoice);
   assert.equal(validation.valid, true, "invoice example should validate");
+  assert.deepEqual(
+    browserSdk.parseApd(JSON.stringify(invoice)),
+    invoice,
+    "browser parseApd should parse JSON strings without Node-only helpers"
+  );
 
   const scaffold = createApdScaffold();
   const scaffoldValidation = validateApd(scaffold, { strict: true });
@@ -151,6 +157,7 @@ function run() {
   assert.equal(svg.includes("<svg"), true, "SVG output should contain svg tag");
 
   const sopMarkdown = toSopMarkdown(invoice);
+  const browserSopMarkdown = browserSdk.toSopMarkdown(invoice);
   assert.equal(sopMarkdown.includes("## Overview"), true, "SOP export should include Overview section");
   assert.equal(sopMarkdown.includes("## Parameters"), true, "SOP export should include Parameters section");
   assert.equal(sopMarkdown.includes("## Steps"), true, "SOP export should include Steps section");
@@ -166,6 +173,7 @@ function run() {
     false,
     "parameter acquisition constraints should be omitted when the APD does not declare required inputs"
   );
+  assert.equal(browserSopMarkdown, sopMarkdown, "browser SOP export should match the Node export");
   assert.equal(
     headingIndex(sopMarkdown, "Get finance approval") < headingIndex(sopMarkdown, "Draft confirmation reply"),
     true,

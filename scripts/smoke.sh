@@ -75,4 +75,9 @@ echo "Exercising APD-aware AER demo..."
 python3 adapters/strands/demo/run_apd_with_aer.py --apd examples/invoice-logging.apd.json --mock --output "$tmp_dir/invoice-demo.aer-v0.2.json" >/dev/null
 run_validate_aer "$tmp_dir/invoice-demo.aer-v0.2.json"
 
+echo "Exercising Microsoft Agent Framework adapter demo..."
+python3 adapters/microsoft-agent-framework/demo/run_apd_with_aer.py --apd examples/invoice-logging.apd.json --mock --output "$tmp_dir/invoice-maf-demo.aer-v0.2.json" >/dev/null
+run_validate_aer "$tmp_dir/invoice-maf-demo.aer-v0.2.json"
+run_compare_aer examples/invoice-logging.apd.json "$tmp_dir/invoice-maf-demo.aer-v0.2.json"
+
 echo "Smoke checks passed."

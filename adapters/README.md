@@ -17,12 +17,13 @@ The adapter owns runtime policy. The model should reason within the current node
 
 ## Launch adapters
 
-This repo now includes two launch adapter paths:
+This repo now includes three launch adapter paths:
 
 - [`./strands`](./strands): export `.sop.md` files for Strands and the `strands-agents-sops` ecosystem
 - [`./claude-skills`](./claude-skills): export minimal Claude Skill directories that wrap the SOP output in `SKILL.md` frontmatter
+- [`./microsoft-agent-framework`](./microsoft-agent-framework): execute APD JSON directly through a Microsoft Agent Framework adapter-owned loop and emit AER v0.2
 
-Both adapters build on the shared SOP export path described in [`./sop-md-mapping.md`](./sop-md-mapping.md).
+The Strands and Claude Skills paths build on the shared SOP export path described in [`./sop-md-mapping.md`](./sop-md-mapping.md). The Microsoft Agent Framework path is intentionally APD-aware and runs against the JSON procedure directly.
 
 ## Runtime envelope
 

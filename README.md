@@ -82,15 +82,16 @@ APD sits in the middle of the full capture-to-execution flow:
   - [`packages/cli`](packages/cli)
 - SOP export fixtures:
   - [`fixtures/sop-md/`](fixtures/sop-md)
-- Two adapter starting points:
+- Three adapter starting points:
   - [`adapters/strands`](adapters/strands)
   - [`adapters/claude-skills`](adapters/claude-skills)
+  - [`adapters/microsoft-agent-framework`](adapters/microsoft-agent-framework)
 
 Not in launch scope:
 
 - Python SDK
 - playground / visual builder
-- additional adapters beyond Strands and Claude Skills
+- additional adapters beyond Strands, Claude Skills, and Microsoft Agent Framework
 
 ## Install
 
@@ -141,10 +142,11 @@ See:
 
 ## Adapter story
 
-This launch ships two adapter paths that treat APD as the upstream format:
+This launch ships three adapter paths that treat APD as the upstream format:
 
 - [`adapters/strands`](adapters/strands): export `.sop.md`, then load the SOP into a Strands agent or the `strands-agents-sops` toolchain.
 - [`adapters/claude-skills`](adapters/claude-skills): export a minimal Claude Skill directory where `SKILL.md` wraps the generated SOP content with the required skill frontmatter.
+- [`adapters/microsoft-agent-framework`](adapters/microsoft-agent-framework): load APD JSON directly, execute one node at a time through an adapter-owned loop, and emit AER v0.2.
 
 These adapters are intentionally lightweight. The important proof point is that APD can feed the runtime formats people already use.
 
@@ -175,7 +177,7 @@ This repo now includes:
 - a frozen minimal AER v0.1
 - a preferred AER v0.2 receipt for APD conformance checks
 - SDK and CLI support for validation, summaries, and APD comparison
-- a Strands reference demo that emits AER v0.2 from an adapter-owned runtime loop
+- reference demos that emit AER v0.2 from adapter-owned runtime loops, including Strands and Microsoft Agent Framework
 
 See:
 
@@ -195,7 +197,7 @@ Comparison is against the APD contract first, not against original capture sessi
 5. Read [`spec/apd-v0.1.md`](spec/apd-v0.1.md) for the APD spec.
 6. Inspect [`examples/README.md`](examples/README.md) and the example files under [`examples/`](examples).
 7. Export one example with the CLI and compare it to [`docs/apd-to-sop-example.md`](docs/apd-to-sop-example.md).
-8. Inspect [`adapters/strands`](adapters/strands) or [`adapters/claude-skills`](adapters/claude-skills) depending on your runtime.
+8. Inspect [`adapters/strands`](adapters/strands), [`adapters/claude-skills`](adapters/claude-skills), or [`adapters/microsoft-agent-framework`](adapters/microsoft-agent-framework) depending on your runtime.
 
 ## Repo structure
 
