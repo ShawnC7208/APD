@@ -62,6 +62,11 @@ node packages/cli/bin/apd.js export "$tmp_dir/scaffold.apd.json" --format sop-md
 test -f "$tmp_dir/scaffold.sop.md"
 grep -q '^## Steps$' "$tmp_dir/scaffold.sop.md"
 
+echo "Exercising APD natural-language generation..."
+APD_GENERATE_MOCK_RESPONSE='{"title":"Refund Review","summary":"Review refund requests, approve high-value refunds, and notify customers.","nodes":[{"id":"review","type":"action","name":"Review request","instruction":"Review the refund request."},{"id":"approval","type":"approval","name":"Approve high-value refund","reason":"High-value refunds require approval."},{"id":"notify","type":"action","name":"Notify customer","instruction":"Notify the customer of the refund decision."},{"id":"done","type":"terminal","name":"Refund handled","outcome":"success"}],"transitions":[{"from":"review","to":"approval","default":true},{"from":"approval","to":"notify","condition":"approval granted","default":true},{"from":"notify","to":"done","default":true}]}' \
+  node packages/cli/bin/apd.js generate "Review a refund request, approve high-value refunds, then notify the customer" --provider openai --output "$tmp_dir/generated.apd.json" >/dev/null
+run_validate_strict "$tmp_dir/generated.apd.json"
+
 node adapters/strands/export-sop.js examples/invoice-logging.apd.json "$tmp_dir/strands" >/dev/null
 test -f "$tmp_dir/strands/log-invoice-to-tracker.sop.md"
 grep -q '^## Steps$' "$tmp_dir/strands/log-invoice-to-tracker.sop.md"

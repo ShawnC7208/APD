@@ -108,6 +108,15 @@ apd init my-procedure.apd.json
 apd validate my-procedure.apd.json --strict
 ```
 
+You can also start from natural language with a configured model provider:
+
+```bash
+apd generate "Review a refund request, approve high-value refunds, then notify the customer" --provider openai --output refund-review.apd.json
+apd validate refund-review.apd.json --strict
+```
+
+Use `--provider anthropic` with `ANTHROPIC_API_KEY`, or `--api-key-env <NAME>` when your provider key is stored under a custom environment variable.
+
 If you want to build APD tooling programmatically, install the SDK separately:
 
 ```bash

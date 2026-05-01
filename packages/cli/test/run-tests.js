@@ -14,16 +14,20 @@ const aerMismatch = path.join(root, "fixtures/aer/compare/procedure-mismatch.aer
 const invalid = path.join(root, "fixtures/invalid/missing-kind.apd.json");
 const invalidAer = path.join(root, "fixtures/aer/invalid/dangling-evidence.aer-v0.2.json");
 
-function execNode(args) {
+function execNode(args, env = {}) {
   return childProcess.execFileSync(process.execPath, args, {
     cwd: root,
-    encoding: "utf8"
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      ...env
+    }
   });
 }
 
-function execNodeFailure(args) {
+function execNodeFailure(args, env = {}) {
   try {
-    execNode(args);
+    execNode(args, env);
   } catch (error) {
     return error;
   }
@@ -104,6 +108,130 @@ function run() {
   const forcedInitValidateOutput = execNode([cliBin, "validate", scaffoldPath, "--strict"]);
   assert.equal(forcedInitValidateOutput.includes("PASS"), true, "observed init should remain valid");
   assert.equal(forcedInitValidateOutput.includes("WARN"), false, "observed init scaffold should be strict-clean");
+
+  const generatePath = path.join(tempDir, "refund.generated.apd.json");
+  const mockDraft = JSON.stringify({
+    title: "Refund Review",
+    summary: "Review refund requests, approve high-value refunds, and notify customers.",
+    nodes: [
+      {
+        id: "review",
+        type: "action",
+        name: "Review request",
+        instruction: "Review the refund request."
+      },
+      {
+        id: "approval",
+        type: "approval",
+        name: "Approve high-value refund",
+        reason: "High-value refunds require approval."
+      },
+      {
+        id: "notify",
+        type: "action",
+        name: "Notify customer",
+        instruction: "Notify the customer of the refund decision."
+      },
+      {
+        id: "done",
+        type: "terminal",
+        name: "Refund handled",
+        outcome: "success"
+      }
+    ],
+    transitions: [
+      { from: "review", to: "approval", default: true },
+      { from: "approval", to: "notify", condition: "approval granted", default: true },
+      { from: "notify", to: "done", default: true }
+    ]
+  });
+  const generateOutput = execNode(
+    [
+      cliBin,
+      "generate",
+      "Review a refund request, approve high-value refunds, then notify the customer",
+      "--provider",
+      "openai",
+      "--output",
+      generatePath
+    ],
+    {
+      APD_GENERATE_MOCK_RESPONSE: mockDraft
+    }
+  );
+  assert.equal(generateOutput.includes("Wrote"), true, "generate should acknowledge the written APD");
+  const generatedDocument = JSON.parse(fs.readFileSync(generatePath, "utf8"));
+  assert.equal(generatedDocument.provenance.source_type, "generated", "generate should record generated provenance");
+  assert.equal(
+    generatedDocument.provenance.producer,
+    "@apd-spec/cli generate:openai",
+    "generate should record provider-specific producer"
+  );
+  const generateValidateOutput = execNode([cliBin, "validate", generatePath, "--strict"]);
+  assert.equal(generateValidateOutput.includes("PASS"), true, "generate should write a strict-valid APD");
+  assert.equal(generateValidateOutput.includes("WARN"), false, "generated APD should be strict-clean");
+
+  const generateJsonOutput = execNode(
+    [
+      cliBin,
+      "generate",
+      "Review a refund request",
+      "--provider",
+      "anthropic",
+      "--json",
+      "--output",
+      path.join(tempDir, "refund.generated.anthropic.apd.json")
+    ],
+    {
+      APD_GENERATE_MOCK_RESPONSE: mockDraft
+    }
+  );
+  assert.equal(generateJsonOutput.includes('"provider": "anthropic"'), true, "generate --json should include provider metadata");
+  assert.equal(generateJsonOutput.includes('"valid": true'), true, "generate --json should include validation status");
+
+  const generateOverwriteFailure = execNodeFailure(
+    [
+      cliBin,
+      "generate",
+      "Review a refund request",
+      "--provider",
+      "openai",
+      "--output",
+      generatePath
+    ],
+    {
+      APD_GENERATE_MOCK_RESPONSE: mockDraft
+    }
+  );
+  assert.equal(generateOverwriteFailure.status, 1, "generate should refuse to overwrite existing files without --force");
+  assert.equal(
+    String(generateOverwriteFailure.stderr).includes("Refusing to overwrite existing file"),
+    true,
+    "generate overwrite protection should explain how to use --force"
+  );
+
+  const generateProviderFailure = execNodeFailure([cliBin, "generate", "Review a refund request", "--provider", "local"]);
+  assert.equal(generateProviderFailure.status, 1, "generate should fail for unknown providers");
+  assert.equal(
+    String(generateProviderFailure.stderr).includes("Unsupported generation provider"),
+    true,
+    "generate should explain the accepted provider values"
+  );
+
+  const generateKeyFailure = execNodeFailure(
+    [cliBin, "generate", "Review a refund request", "--provider", "openai"],
+    {
+      OPENAI_API_KEY: "",
+      ANTHROPIC_API_KEY: "",
+      APD_GENERATE_MOCK_RESPONSE: ""
+    }
+  );
+  assert.equal(generateKeyFailure.status, 1, "generate should fail when the provider API key is missing");
+  assert.equal(
+    String(generateKeyFailure.stderr).includes("Missing API key"),
+    true,
+    "generate should explain how to configure the provider key"
+  );
 
   const validateOutput = execNode([cliBin, "validate", invoice]);
   assert.equal(validateOutput.includes("PASS"), true, "validate should pass the invoice example");

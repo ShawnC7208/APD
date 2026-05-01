@@ -4,6 +4,9 @@ const path = require("path");
 const {
   APD,
   createApdScaffold,
+  createApdGenerationPrompt,
+  generateApdDraftFromText,
+  normalizeGeneratedApdDraft,
   parseApd,
   parseAer,
   validateApd,
@@ -38,7 +41,7 @@ function headingIndex(markdown, title) {
   return match ? match.index : -1;
 }
 
-function run() {
+async function run() {
   const rootSchema = readJson("schema/apd-v0.1.schema.json");
   const bundledSchema = readJson("packages/sdk-typescript/schema/apd-v0.1.schema.json");
   assert.deepEqual(bundledSchema, rootSchema, "bundled schema should stay in sync with the root schema");
@@ -121,6 +124,91 @@ function run() {
     true,
     "scaffolded transitions should remain authored even for observed-source scaffolds"
   );
+
+  const generationPrompt = createApdGenerationPrompt("Review a refund request and notify the customer.", {
+    title: "Refund Review"
+  });
+  assert.equal(generationPrompt.instructions.includes("GeneratedApdDraft"), true, "generation prompt should name the draft schema");
+  assert.equal(generationPrompt.input.includes("Refund Review"), true, "generation prompt should include title context");
+  assert.equal(generationPrompt.schema.type, "object", "generation prompt should include a JSON schema");
+
+  const generated = normalizeGeneratedApdDraft(
+    {
+      title: "Refund Review",
+      summary: "Review refund requests and notify customers.",
+      nodes: [
+        {
+          id: "review",
+          type: "action",
+          name: "Review request",
+          instruction: "Review the refund request.",
+          completion_checks: ["The refund request has been reviewed."]
+        },
+        {
+          id: "approval",
+          type: "approval",
+          name: "Approve high-value refund",
+          reason: "High-value refunds require human approval."
+        },
+        {
+          id: "notify",
+          type: "action",
+          name: "Notify customer",
+          instruction: "Notify the customer of the refund decision."
+        },
+        {
+          id: "done",
+          type: "terminal",
+          name: "Refund handled",
+          outcome: "success"
+        }
+      ],
+      transitions: [
+        { from: "review", to: "approval", default: true },
+        { from: "approval", to: "notify", condition: "approval granted", default: true },
+        { from: "notify", to: "done", default: true }
+      ]
+    },
+    {
+      sourceText: "Review a refund request, approve high-value refunds, then notify the customer.",
+      producer: "@apd-spec/cli generate:openai"
+    }
+  );
+  const generatedValidation = validateApd(generated, { strict: true });
+  assert.equal(generatedValidation.valid, true, "normalized generated APD should validate");
+  assert.deepEqual(generatedValidation.diagnostics, [], "normalized generated APD should be strict-clean");
+  assert.equal(generated.provenance.source_type, "generated", "generated APD should record generated provenance");
+  assert.equal(generated.provenance.producer, "@apd-spec/cli generate:openai", "generated APD should preserve producer");
+  assert.equal(
+    generated.procedure.nodes.every((node) => node.observed_vs_inferred === "inferred"),
+    true,
+    "generated nodes should be marked inferred for review"
+  );
+  assert.equal(
+    generated.procedure.nodes.filter((node) => node.type === "action").every((node) => node.recovery),
+    true,
+    "generated action nodes should receive recovery guidance"
+  );
+  assert.equal(
+    generated.provenance.confidence.per_node.find((item) => item.node_id === "approval").confidence < 0.7,
+    true,
+    "generated approvals should receive lower review confidence"
+  );
+
+  const generatedFromText = await generateApdDraftFromText("Archive completed tickets.", {
+    generateDraft: () => ({
+      title: "Archive Tickets",
+      summary: "Archive completed support tickets.",
+      nodes: [
+        {
+          type: "action",
+          name: "Archive tickets",
+          instruction: "Archive completed tickets."
+        }
+      ]
+    })
+  });
+  assert.equal(validateApd(generatedFromText, { strict: true }).valid, true, "generateApdDraftFromText should normalize provider drafts");
 
   const aerV01 = readJson("examples/invoice-logging.aer.json");
   const aerV01Validation = validateAer(aerV01);
@@ -517,4 +605,7 @@ function run() {
   console.log("All @apd-spec/sdk checks passed.");
 }
 
-run();
+run().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

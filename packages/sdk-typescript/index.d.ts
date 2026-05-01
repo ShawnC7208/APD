@@ -376,6 +376,62 @@ export interface CreateApdScaffoldOptions {
   observed_vs_inferred_summary?: string;
 }
 
+export interface GeneratedApdDraftNode {
+  id?: string;
+  type: NodeType;
+  name: string;
+  instruction?: string;
+  question?: string;
+  evaluation_hint?: string;
+  reason?: string;
+  outcome?: Outcome;
+  uses?: string[];
+  produces?: string[];
+  pre_state_checks?: string[];
+  completion_checks?: string[];
+  recovery?: Recovery;
+  risk?: Risk;
+}
+
+export interface GeneratedApdDraft {
+  title: string;
+  procedure_id?: string;
+  summary: string;
+  entry_conditions?: string[];
+  inputs_schema?: Record<string, unknown>;
+  outputs_schema?: Record<string, unknown>;
+  entities?: Entity[];
+  nodes: GeneratedApdDraftNode[];
+  transitions?: Array<{
+    from: string;
+    to: string;
+    condition?: string;
+    default?: boolean;
+  }>;
+  review_notes?: string[];
+}
+
+export interface ApdGenerationPrompt {
+  instructions: string;
+  input: string;
+  schema: Record<string, unknown>;
+}
+
+export interface NormalizeGeneratedApdDraftOptions {
+  title?: string;
+  procedureId?: string;
+  procedure_id?: string;
+  summary?: string;
+  revision?: string;
+  producer?: string;
+  sourceText?: string;
+  source_text?: string;
+}
+
+export interface GenerateApdDraftFromTextOptions extends NormalizeGeneratedApdDraftOptions {
+  generateDraft(prompt: ApdGenerationPrompt): Promise<GeneratedApdDraft> | GeneratedApdDraft;
+}
+
 export interface RiskInput {
   level: RiskLevel;
   irreversible: boolean;
@@ -574,6 +630,18 @@ export declare function loadSchema(): Record<string, unknown>;
 export declare function loadApdSchema(): Record<string, unknown>;
 export declare function loadAerSchema(version?: AERSpecVersion): Record<string, unknown>;
 export declare function createApdScaffold(options?: CreateApdScaffoldOptions): APDDocument;
+export declare function createApdGenerationPrompt(
+  workflowText: string,
+  options?: NormalizeGeneratedApdDraftOptions
+): ApdGenerationPrompt;
+export declare function normalizeGeneratedApdDraft(
+  draft: Partial<GeneratedApdDraft>,
+  options?: NormalizeGeneratedApdDraftOptions
+): APDDocument;
+export declare function generateApdDraftFromText(
+  workflowText: string,
+  options: GenerateApdDraftFromTextOptions
+): Promise<APDDocument>;
 export declare function parseApd(input: string | Buffer | APDDocument): APDDocument;
 export declare function parseAer(input: string | Buffer | AERDocument): AERDocument;
 export declare function validateApd(input: string | Buffer | APDDocument, options?: { strict?: boolean }): ValidationResult;

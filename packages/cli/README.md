@@ -29,6 +29,7 @@ node packages/cli/bin/apd.js validate examples/invoice-logging.apd.json
 
 ```text
 apd init <output.apd.json> [--title <title>] [--procedure-id <id>] [--summary <summary>] [--source-type observed|authored|converted|generated] [--force]
+apd generate "describe your workflow" [--provider openai|anthropic] [--model <id>] [--output <file.apd.json>] [--title <title>] [--procedure-id <id>] [--force] [--json] [--strict] [--api-key-env <NAME>] [--repair-attempts <n>]
 apd validate <file.apd.json> [--json] [--quiet] [--strict]
 apd info <file.apd.json> [--json]
 apd export <file.apd.json> --format sop-md [--output <file.sop.md>]
@@ -70,6 +71,16 @@ apd init refund-review.apd.json
 ```
 
 This creates a strict-clean minimal APD scaffold with a starter action node and terminal node.
+
+## `generate`
+
+```bash
+apd generate "Review a refund request, approve high-value refunds, then notify the customer" --provider openai --output refund-review.apd.json
+```
+
+This asks an LLM provider to create a validated APD scaffold from a natural-language workflow description. Use `--provider openai` with `OPENAI_API_KEY`, or `--provider anthropic` with `ANTHROPIC_API_KEY`. To keep secrets out of shell history, the CLI does not accept a literal API key flag; use `--api-key-env <NAME>` when your key lives in a custom environment variable.
+
+Generated APDs use `provenance.source_type: "generated"` and mark generated nodes as inferred so reviewers know the scaffold needs review before runtime use.
 
 ## `info`
 

@@ -2,6 +2,9 @@ const fs = require("fs");
 const path = require("path");
 const {
   createApdScaffold,
+  createApdGenerationPrompt,
+  generateApdDraftFromText,
+  normalizeGeneratedApdDraft,
   parseApd,
   parseAer,
   validateApd,
@@ -18,6 +21,7 @@ function usage() {
   return [
     "Usage:",
     "  apd init <output.apd.json> [--title <title>] [--procedure-id <id>] [--summary <summary>] [--source-type observed|authored|converted|generated] [--force]",
+    "  apd generate \"describe your workflow\" [--provider openai|anthropic] [--model <id>] [--output <file.apd.json>] [--title <title>] [--procedure-id <id>] [--force] [--json] [--strict] [--api-key-env <NAME>] [--repair-attempts <n>]",
     "  apd validate <file.apd.json> [--json] [--quiet] [--strict]",
     "  apd info <file.apd.json> [--json]",
     "  apd export <file.apd.json> --format sop-md [--output <file.sop.md>]",
@@ -271,6 +275,309 @@ function kebabCase(value) {
     .replace(/^-+|-+$/g, "") || "new-procedure";
 }
 
+function getOptionEnvironment(options) {
+  return options.env || process.env;
+}
+
+function resolveGenerateProvider(args, env) {
+  const explicitProvider = getFlagValue(args, "--provider", null);
+  const provider = explicitProvider || env.APD_GENERATE_PROVIDER || (env.OPENAI_API_KEY ? "openai" : env.ANTHROPIC_API_KEY ? "anthropic" : null);
+
+  if (!provider) {
+    throw new Error("Missing generation provider. Use --provider openai|anthropic or set APD_GENERATE_PROVIDER.");
+  }
+
+  if (!["openai", "anthropic"].includes(provider)) {
+    throw new Error("Unsupported generation provider. Expected --provider openai|anthropic.");
+  }
+
+  return provider;
+}
+
+function resolveGenerateApiKey(args, provider, env) {
+  const apiKeyEnv = getFlagValue(args, "--api-key-env", null) || (provider === "openai" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY");
+  const apiKey = env[apiKeyEnv];
+
+  if (!apiKey && !env.APD_GENERATE_MOCK_RESPONSE) {
+    throw new Error(`Missing API key. Set ${apiKeyEnv} or pass --api-key-env <NAME>.`);
+  }
+
+  return {
+    apiKey,
+    apiKeyEnv
+  };
+}
+
+function parseGenerateDraftResponse(value) {
+  if (!value) {
+    throw new Error("Provider returned an empty generation response");
+  }
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return value;
+  }
+
+  const text = String(value).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  return JSON.parse(text);
+}
+
+function extractOpenAiResponseText(payload) {
+  if (payload.output_text) {
+    return payload.output_text;
+  }
+
+  for (const item of payload.output || []) {
+    for (const content of item.content || []) {
+      if (content.text) {
+        return content.text;
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractAnthropicResponseValue(payload) {
+  for (const item of payload.content || []) {
+    if (item.type === "text" && item.text) {
+      return item.text;
+    }
+    if (item.type === "tool_use" && item.input) {
+      return item.input;
+    }
+  }
+
+  return null;
+}
+
+async function postJson(fetchImpl, url, headers, body) {
+  const response = await fetchImpl(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...headers
+    },
+    body: JSON.stringify(body)
+  });
+
+  const text = await response.text();
+  let payload = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = { raw: text };
+    }
+  }
+
+  if (!response.ok) {
+    const message = payload?.error?.message || payload?.raw || `HTTP ${response.status}`;
+    throw new Error(`Provider request failed: ${message}`);
+  }
+
+  return payload;
+}
+
+async function callOpenAiGenerate(prompt, options) {
+  const payload = await postJson(
+    options.fetch,
+    "https://api.openai.com/v1/responses",
+    {
+      authorization: `Bearer ${options.apiKey}`
+    },
+    {
+      model: options.model,
+      instructions: prompt.instructions,
+      input: prompt.input,
+      max_output_tokens: 12000,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "generated_apd_draft",
+          schema: prompt.schema,
+          strict: false
+        }
+      }
+    }
+  );
+
+  return parseGenerateDraftResponse(extractOpenAiResponseText(payload));
+}
+
+async function callAnthropicGenerate(prompt, options) {
+  const payload = await postJson(
+    options.fetch,
+    "https://api.anthropic.com/v1/messages",
+    {
+      "x-api-key": options.apiKey,
+      "anthropic-version": "2023-06-01"
+    },
+    {
+      model: options.model,
+      max_tokens: 12000,
+      system: prompt.instructions,
+      messages: [
+        {
+          role: "user",
+          content: prompt.input
+        }
+      ],
+      output_config: {
+        format: {
+          type: "json_schema",
+          schema: prompt.schema
+        }
+      }
+    }
+  );
+
+  return parseGenerateDraftResponse(extractAnthropicResponseValue(payload));
+}
+
+function formatDiagnostics(diagnostics) {
+  return diagnostics.map((diagnostic) => `${diagnostic.kind.toUpperCase()} ${diagnostic.path} ${diagnostic.message}`).join("\n");
+}
+
+function buildRepairPrompt(workflowText, document, diagnostics, baseOptions) {
+  const prompt = createApdGenerationPrompt(workflowText, baseOptions);
+  return {
+    ...prompt,
+    input: [
+      prompt.input,
+      "The previous generated APD failed strict validation after normalization.",
+      "Return a corrected GeneratedApdDraft JSON object.",
+      "Diagnostics:",
+      formatDiagnostics(diagnostics),
+      "Previous normalized APD:",
+      JSON.stringify(document, null, 2)
+    ].join("\n\n")
+  };
+}
+
+function getGenerateMockDraft(env) {
+  if (!env.APD_GENERATE_MOCK_RESPONSE) {
+    return null;
+  }
+
+  const mock = env.APD_GENERATE_MOCK_RESPONSE;
+  if (fs.existsSync(mock)) {
+    return JSON.parse(fs.readFileSync(mock, "utf8"));
+  }
+
+  return JSON.parse(mock);
+}
+
+async function handleGenerate(args, options = {}) {
+  const env = getOptionEnvironment(options);
+  const output = getFlagValue(args, "--output", null);
+  const titleFlag = getFlagValue(args, "--title", null);
+  const procedureIdFlag = getFlagValue(args, "--procedure-id", null);
+  const json = args.includes("--json");
+  const force = args.includes("--force");
+  const provider = resolveGenerateProvider(args, env);
+  const model = getFlagValue(args, "--model", provider === "openai" ? "gpt-5.1" : "claude-sonnet-4-5");
+  const repairAttempts = Number.parseInt(getFlagValue(args, "--repair-attempts", "1"), 10);
+  const workflowText = getFileArgs(args, [
+    "--provider",
+    "--model",
+    "--output",
+    "--title",
+    "--procedure-id",
+    "--api-key-env",
+    "--repair-attempts"
+  ]).join(" ").trim();
+
+  if (!workflowText) {
+    throw new Error(
+      "Usage: apd generate \"describe your workflow\" [--provider openai|anthropic] [--model <id>] [--output <file.apd.json>]"
+    );
+  }
+
+  const absoluteOutput = output ? path.resolve(output) : null;
+  if (absoluteOutput && fs.existsSync(absoluteOutput) && !force) {
+    throw new Error(`Refusing to overwrite existing file '${absoluteOutput}'. Re-run with --force to replace it.`);
+  }
+
+  const { apiKey, apiKeyEnv } = resolveGenerateApiKey(args, provider, env);
+  const fetchImpl = options.fetch || globalThis.fetch;
+  if (!fetchImpl && !env.APD_GENERATE_MOCK_RESPONSE) {
+    throw new Error("This Node.js runtime does not provide fetch. Use Node.js 20 or newer.");
+  }
+
+  const callProvider = async (prompt) => {
+    const mockDraft = getGenerateMockDraft(env);
+    if (mockDraft) {
+      return mockDraft;
+    }
+
+    if (provider === "openai") {
+      return callOpenAiGenerate(prompt, { apiKey, model, fetch: fetchImpl });
+    }
+
+    return callAnthropicGenerate(prompt, { apiKey, model, fetch: fetchImpl });
+  };
+
+  const normalizeOptions = {
+    title: titleFlag,
+    procedureId: procedureIdFlag,
+    sourceText: workflowText,
+    producer: `@apd-spec/cli generate:${provider}`
+  };
+  let document = await generateApdDraftFromText(workflowText, {
+    ...normalizeOptions,
+    generateDraft: callProvider
+  });
+  let validation = validateApd(document, { strict: true });
+  let attemptsUsed = 0;
+
+  while ((validation.valid === false || validation.diagnostics.length > 0) && attemptsUsed < Math.max(0, repairAttempts)) {
+    attemptsUsed += 1;
+    const repairPrompt = buildRepairPrompt(workflowText, document, validation.diagnostics, normalizeOptions);
+    const repairedDraft = await callProvider(repairPrompt);
+    document = normalizeGeneratedApdDraft(repairedDraft, normalizeOptions);
+    validation = validateApd(document, { strict: true });
+  }
+
+  const payload = {
+    provider,
+    model,
+    api_key_env: apiKeyEnv,
+    file: absoluteOutput,
+    valid: validation.valid,
+    diagnostics: validation.diagnostics,
+    summary: summarizeApd(document),
+    repair_attempts_used: attemptsUsed,
+    document
+  };
+
+  if (!validation.valid || validation.diagnostics.length > 0) {
+    if (json) {
+      console.log(JSON.stringify(payload, null, 2));
+    } else {
+      console.error(formatValidateHuman(absoluteOutput || "<generated>", validation));
+    }
+    process.exit(1);
+  }
+
+  if (absoluteOutput) {
+    fs.mkdirSync(path.dirname(absoluteOutput), { recursive: true });
+    fs.writeFileSync(absoluteOutput, JSON.stringify(document, null, 2) + "\n", "utf8");
+    if (json) {
+      console.log(JSON.stringify(payload, null, 2));
+    } else {
+      console.log(`Wrote ${absoluteOutput}`);
+    }
+    return;
+  }
+
+  if (json) {
+    console.log(JSON.stringify(payload, null, 2));
+    return;
+  }
+
+  process.stdout.write(JSON.stringify(document, null, 2) + "\n");
+}
+
 async function handleInit(args) {
   const output = getFileArgs(args, ["--title", "--procedure-id", "--summary", "--source-type"]);
   const titleFlag = getFlagValue(args, "--title", null);
@@ -457,6 +764,11 @@ async function run(args, options = {}) {
     return;
   }
 
+  if (command === "generate") {
+    await handleGenerate(rest, options);
+    return;
+  }
+
   if (command === "validate") {
     await handleValidate(rest, options);
     return;
@@ -487,5 +799,7 @@ async function run(args, options = {}) {
 
 module.exports = {
   run,
-  usage
+  usage,
+  callOpenAiGenerate,
+  callAnthropicGenerate
 };

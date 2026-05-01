@@ -26,6 +26,15 @@ That is why APD exists upstream of SOP markdown.
 
 Use [`../examples/refund-escalation-synthesized.apd.json`](../examples/refund-escalation-synthesized.apd.json) as the launch example.
 
+If the source material starts as natural language instead of a captured session, generate the first review scaffold:
+
+```bash
+apd generate "Review a refund request, approve high-value refunds, then notify the customer" --provider openai --output refund-review.apd.json
+apd validate refund-review.apd.json --strict
+```
+
+That generated APD should still go through review. APD records `source_type: "generated"` and inferred node markers so reviewers can inspect what the model synthesized before any runtime markdown is exported.
+
 ### Observation
 
 The captured session showed:

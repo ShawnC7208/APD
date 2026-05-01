@@ -1403,6 +1403,384 @@ function createApdScaffold(options = {}) {
   return document.toJSON();
 }
 
+const GENERATED_APD_DRAFT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "summary", "nodes"],
+  properties: {
+    title: { type: "string" },
+    procedure_id: { type: "string" },
+    summary: { type: "string" },
+    entry_conditions: {
+      type: "array",
+      items: { type: "string" }
+    },
+    inputs_schema: { type: "object", additionalProperties: true },
+    outputs_schema: { type: "object", additionalProperties: true },
+    entities: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: true,
+        properties: {
+          id: { type: "string" },
+          type: { type: "string" },
+          name: { type: "string" },
+          description: { type: "string" },
+          source_hint: { type: "string" },
+          observed_value: { type: "string" }
+        }
+      }
+    },
+    nodes: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        additionalProperties: true,
+        required: ["type", "name"],
+        properties: {
+          id: { type: "string" },
+          type: { enum: ["action", "decision", "approval", "terminal"] },
+          name: { type: "string" },
+          instruction: { type: "string" },
+          question: { type: "string" },
+          evaluation_hint: { type: "string" },
+          reason: { type: "string" },
+          outcome: { enum: ["success", "failure", "canceled"] },
+          uses: { type: "array", items: { type: "string" } },
+          produces: { type: "array", items: { type: "string" } },
+          pre_state_checks: { type: "array", items: { type: "string" } },
+          completion_checks: { type: "array", items: { type: "string" } },
+          recovery: {
+            type: "object",
+            additionalProperties: true,
+            properties: {
+              strategy: { enum: ["retry", "ask-user", "skip", "abort", "fallback"] },
+              instructions: { type: "string" }
+            }
+          },
+          risk: {
+            type: "object",
+            additionalProperties: true,
+            properties: {
+              level: { enum: ["low", "medium", "high", "critical"] },
+              irreversible: { type: "boolean" },
+              confirmation_required: { type: "boolean" },
+              reason: { type: "string" }
+            }
+          }
+        }
+      }
+    },
+    transitions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["from", "to"],
+        properties: {
+          from: { type: "string" },
+          to: { type: "string" },
+          condition: { type: "string" },
+          default: { type: "boolean" }
+        }
+      }
+    },
+    review_notes: {
+      type: "array",
+      items: { type: "string" }
+    }
+  }
+};
+
+function createApdGenerationPrompt(workflowText, options = {}) {
+  const text = String(workflowText || "").trim();
+  if (!text) {
+    throw new Error("generate requires a natural-language workflow description");
+  }
+
+  const metadata = [];
+  if (options.title) {
+    metadata.push(`Preferred title: ${options.title}`);
+  }
+  if (options.procedureId || options.procedure_id) {
+    metadata.push(`Preferred procedure_id: ${options.procedureId || options.procedure_id}`);
+  }
+
+  const instructions = [
+    "You convert natural-language workflow descriptions into APD generation drafts.",
+    "Return JSON only in the provided GeneratedApdDraft schema.",
+    "Model reusable procedure structure, not a one-off execution receipt.",
+    "Prefer a small, reviewable graph: action nodes for work, decision nodes for conditional routing, approval nodes for human gates, and terminal nodes for outcomes.",
+    "Include recovery guidance for actions and evaluation hints for decisions.",
+    "Mark risky, irreversible, financial, external-send, deletion, permission, or customer-impacting actions with risk and confirmation guidance.",
+    "Use concise snake_case or kebab-like ids that are stable and human-readable.",
+    "Do not include secrets, API keys, credentials, or runtime-only execution evidence."
+  ].join("\n");
+
+  const input = [
+    metadata.length > 0 ? metadata.join("\n") : "",
+    "Workflow description:",
+    text
+  ].filter(Boolean).join("\n\n");
+
+  return {
+    instructions,
+    input,
+    schema: clone(GENERATED_APD_DRAFT_SCHEMA)
+  };
+}
+
+function normalizeGeneratedString(value, fallback) {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
+function normalizeGeneratedArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => String(item || "").trim()).filter(Boolean);
+}
+
+function normalizeJsonSchemaObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { type: "object", properties: {} };
+  }
+
+  return clone(value);
+}
+
+function makeUniqueId(rawId, fallback, seen) {
+  const base = kebabCase(rawId || fallback).replace(/-/g, "_");
+  let candidate = base || "node";
+  let suffix = 2;
+  while (seen.has(candidate)) {
+    candidate = `${base}_${suffix}`;
+    suffix += 1;
+  }
+  seen.add(candidate);
+  return candidate;
+}
+
+function normalizeGeneratedRecovery(node) {
+  if (node.recovery && node.recovery.strategy && node.recovery.instructions) {
+    return {
+      strategy: node.recovery.strategy,
+      instructions: node.recovery.instructions
+    };
+  }
+
+  return {
+    strategy: "ask-user",
+    instructions: "Pause for review if this generated step cannot be completed confidently or needs more workflow detail."
+  };
+}
+
+function normalizeGeneratedRisk(node) {
+  if (!node.risk || !node.risk.level || !node.risk.reason) {
+    return undefined;
+  }
+
+  return {
+    level: node.risk.level,
+    irreversible: Boolean(node.risk.irreversible),
+    confirmation_required: Boolean(node.risk.confirmation_required),
+    reason: node.risk.reason
+  };
+}
+
+function normalizeGeneratedEntity(entity, index) {
+  return normalizeEntity({
+    id: entity.id || `entity_${index + 1}`,
+    type: entity.type || "resource",
+    name: entity.name || titleCase(entity.id || `Entity ${index + 1}`),
+    description: entity.description || "Generated workflow entity.",
+    source_hint: entity.source_hint,
+    observed_value: entity.observed_value
+  });
+}
+
+function normalizeGeneratedApdDraft(draftInput, options = {}) {
+  const draft = draftInput && typeof draftInput === "object" && !Array.isArray(draftInput) ? draftInput : {};
+  const sourceText = String(options.sourceText || options.source_text || "").trim();
+  const title = normalizeGeneratedString(options.title || draft.title, "Generated Workflow");
+  const procedureId = kebabCase(options.procedureId || options.procedure_id || draft.procedure_id || title);
+  const producer = options.producer || "@apd-spec/sdk generate";
+  const rawNodes = Array.isArray(draft.nodes) && draft.nodes.length > 0
+    ? draft.nodes
+    : [
+        {
+          type: "action",
+          name: "Review workflow request",
+          instruction: sourceText || "Review the generated workflow request and refine the APD scaffold."
+        }
+      ];
+
+  const seenIds = new Set();
+  const generatedNodes = rawNodes
+    .map((node, index) => {
+      const type = ["action", "decision", "approval", "terminal"].includes(node.type) ? node.type : "action";
+      const id = makeUniqueId(node.id, `${type}_${index + 1}`, seenIds);
+      const name = normalizeGeneratedString(node.name, titleCase(id));
+      const base = {
+        id,
+        name,
+        uses: normalizeGeneratedArray(node.uses),
+        produces: normalizeGeneratedArray(node.produces),
+        pre_state_checks: normalizeGeneratedArray(node.pre_state_checks),
+        completion_checks: normalizeGeneratedArray(node.completion_checks),
+        risk: normalizeGeneratedRisk(node),
+        observed_vs_inferred: "inferred",
+        extensions: {}
+      };
+
+      if (type === "decision") {
+        return buildDecisionNode({
+          ...base,
+          question: normalizeGeneratedString(node.question, `Does ${name.toLowerCase()} require a different path?`),
+          evaluation_hint: normalizeGeneratedString(
+            node.evaluation_hint,
+            "Use the generated workflow description and available runtime context to choose the safest matching path."
+          )
+        });
+      }
+
+      if (type === "approval") {
+        return buildApprovalNode({
+          ...base,
+          reason: normalizeGeneratedString(node.reason, `${name} requires human approval before continuing.`)
+        });
+      }
+
+      if (type === "terminal") {
+        return buildTerminalNode({
+          ...base,
+          outcome: ["success", "failure", "canceled"].includes(node.outcome) ? node.outcome : "success"
+        });
+      }
+
+      return buildActionNode({
+        ...base,
+        instruction: normalizeGeneratedString(node.instruction, `Complete ${name.toLowerCase()}.`),
+        recovery: normalizeGeneratedRecovery(node)
+      });
+    });
+
+  if (!generatedNodes.some((node) => node.type === "terminal")) {
+    generatedNodes.push(
+      buildTerminalNode({
+        id: makeUniqueId("done", "done", seenIds),
+        name: "Workflow complete",
+        outcome: "success",
+        observed_vs_inferred: "inferred",
+        extensions: {}
+      })
+    );
+  }
+
+  const builder = APDBuilder.create({
+    procedureId,
+    revision: options.revision || "1",
+    title,
+    summary: normalizeGeneratedString(
+      options.summary || draft.summary,
+      sourceText || "Generated APD scaffold from a natural-language workflow description."
+    ),
+    entryConditions: normalizeGeneratedArray(draft.entry_conditions),
+    inputsSchema: normalizeJsonSchemaObject(draft.inputs_schema),
+    outputsSchema: normalizeJsonSchemaObject(draft.outputs_schema),
+    entities: Array.isArray(draft.entities) ? draft.entities.map(normalizeGeneratedEntity) : [],
+    provenance: {
+      producer,
+      source_type: "generated",
+      confidence: {
+        overall: 0.72,
+        per_node: generatedNodes
+          .filter((node) => node.type !== "terminal")
+          .map((node) => ({
+            node_id: node.id,
+            confidence: node.type === "decision" || node.type === "approval" ? 0.58 : 0.72
+          }))
+      },
+      observed_vs_inferred_summary:
+        "This APD was synthesized from a natural-language workflow prompt. All generated nodes and branches should be reviewed before runtime use."
+    },
+    extensions: {
+      generated_from_text: sourceText || undefined,
+      review_notes: normalizeGeneratedArray(draft.review_notes)
+    }
+  });
+
+  generatedNodes.forEach((node) => builder.addNode(node));
+
+  const idMap = new Map();
+  rawNodes.forEach((rawNode, index) => {
+    if (rawNode && rawNode.id && generatedNodes[index]) {
+      idMap.set(String(rawNode.id), generatedNodes[index].id);
+    }
+  });
+  generatedNodes.forEach((node) => idMap.set(node.id, node.id));
+
+  const nodeOrder = new Map(generatedNodes.map((node, index) => [node.id, index]));
+  const defaultsBySource = new Set();
+  const outgoingBySource = new Map();
+  const addGeneratedTransition = (from, to, optionsForTransition = {}) => {
+    if (!nodeOrder.has(from) || !nodeOrder.has(to) || nodeOrder.get(from) >= nodeOrder.get(to)) {
+      return false;
+    }
+
+    const sourceNode = generatedNodes[nodeOrder.get(from)];
+    if (sourceNode.type === "terminal") {
+      return false;
+    }
+
+    const transitionOptions = {
+      condition: optionsForTransition.condition,
+      default: Boolean(optionsForTransition.default) && !defaultsBySource.has(from),
+      observed_vs_inferred: "inferred"
+    };
+
+    if (transitionOptions.default) {
+      defaultsBySource.add(from);
+    }
+
+    builder.connect(from, to, transitionOptions);
+    outgoingBySource.set(from, (outgoingBySource.get(from) || 0) + 1);
+    return true;
+  };
+
+  (Array.isArray(draft.transitions) ? draft.transitions : []).forEach((transition) => {
+    const from = idMap.get(String(transition.from || "")) || transition.from;
+    const to = idMap.get(String(transition.to || "")) || transition.to;
+    addGeneratedTransition(from, to, transition);
+  });
+
+  for (let index = 0; index < generatedNodes.length - 1; index += 1) {
+    const node = generatedNodes[index];
+    if (node.type !== "terminal" && !outgoingBySource.has(node.id)) {
+      addGeneratedTransition(node.id, generatedNodes[index + 1].id, { default: true });
+    }
+  }
+
+  return builder.toJSON();
+}
+
+async function generateApdDraftFromText(workflowText, options = {}) {
+  if (typeof options.generateDraft !== "function") {
+    throw new Error("generateApdDraftFromText requires options.generateDraft");
+  }
+
+  const prompt = createApdGenerationPrompt(workflowText, options);
+  const draft = await options.generateDraft(prompt);
+  return normalizeGeneratedApdDraft(draft, {
+    ...options,
+    sourceText: workflowText
+  });
+}
+
 class APDBuilder {
   constructor(document) {
     this.document = document;
@@ -2507,6 +2885,9 @@ class AERRecorder {
 module.exports = {
   APD: APDBuilder,
   createApdScaffold,
+  createApdGenerationPrompt,
+  generateApdDraftFromText,
+  normalizeGeneratedApdDraft,
   parseApd,
   parseAer,
   validateApd,

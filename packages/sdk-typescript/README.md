@@ -41,6 +41,9 @@ Builder:
 
 - `APD`
 - `createApdScaffold`
+- `createApdGenerationPrompt`
+- `generateApdDraftFromText`
+- `normalizeGeneratedApdDraft`
 
 Read and validate:
 
@@ -80,6 +83,23 @@ const scaffold = createApdScaffold({
 });
 
 fs.writeFileSync("refund-review.apd.json", JSON.stringify(scaffold, null, 2) + "\n");
+```
+
+## Normalize a generated APD draft
+
+Provider calls belong in your application or the CLI, but the SDK can create the prompt contract and normalize a provider draft into APD:
+
+```js
+const { createApdGenerationPrompt, normalizeGeneratedApdDraft, validateApd } = require("@apd-spec/sdk");
+
+const prompt = createApdGenerationPrompt("Review a refund request, approve high-value refunds, then notify the customer.");
+const draft = await callYourModel(prompt);
+const apd = normalizeGeneratedApdDraft(draft, {
+  producer: "my-tool generate:openai",
+  sourceText: prompt.input
+});
+
+console.log(validateApd(apd, { strict: true }));
 ```
 
 ## Builder example
