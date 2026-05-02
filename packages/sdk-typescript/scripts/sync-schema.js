@@ -5,7 +5,8 @@ const destinationDir = path.resolve(__dirname, "../schema");
 const schemaFiles = [
   "apd-v0.1.schema.json",
   "agent-execution-record-v0.1.schema.json",
-  "agent-execution-record-v0.2.schema.json"
+  "agent-execution-record-v0.2.schema.json",
+  "agent-execution-record-v0.3.schema.json"
 ];
 
 fs.mkdirSync(destinationDir, { recursive: true });

@@ -7,7 +7,7 @@ export type ObservedVsInferred = "observed" | "inferred" | "authored";
 export type SourceType = "observed" | "authored" | "converted" | "generated";
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 export type RecoveryStrategy = "retry" | "ask-user" | "skip" | "abort" | "fallback";
-export type AERSpecVersion = "0.1.0" | "0.2.0";
+export type AERSpecVersion = "0.1.0" | "0.2.0" | "0.3.0";
 export type AERNodeOutcome = "completed" | "approved" | "rejected" | "failed" | "skipped" | "paused";
 export type ApprovalDecision = "approved" | "denied" | "canceled";
 
@@ -146,6 +146,11 @@ export interface AERExecutor {
   agent: string;
   adapter: string;
   environment?: string;
+  recorder_attestation?: {
+    public_key: string;
+    signature: string;
+    attested_at: string;
+  };
 }
 
 export interface AERToolInvocationV01 {
@@ -210,7 +215,17 @@ export interface AEREvidence {
 
 export interface AERIntegrity {
   chain_hash: string;
-  signature?: string;
+  previous_chain_hash?: string;
+  signature?: string | {
+    algorithm: "ed25519";
+    public_key: string;
+    value: string;
+  };
+  transparency_anchor?: {
+    type: "rfc3161" | "rekor";
+    reference: string;
+    anchored_at: string;
+  };
 }
 
 export interface AERNodeExecutionV01 {
@@ -267,7 +282,11 @@ export interface AERDocumentV02 {
   extensions: Record<string, unknown>;
 }
 
-export type AERDocument = AERDocumentV01 | AERDocumentV02;
+export interface AERDocumentV03 extends Omit<AERDocumentV02, "spec_version"> {
+  spec_version: "0.3.0";
+}
+
+export type AERDocument = AERDocumentV01 | AERDocumentV02 | AERDocumentV03;
 
 export interface ValidationResult {
   valid: boolean;

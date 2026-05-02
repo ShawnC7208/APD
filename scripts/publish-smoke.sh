@@ -44,6 +44,7 @@ npm install --cache "$CACHE_DIR" "$cli_path" >/dev/null
 echo "Checking SDK import..."
 node - <<'EOF'
 const sdk = require("@apd-spec/sdk");
+const nodeSdk = require("@apd-spec/sdk/node");
 
 if (typeof sdk.validateApd !== "function") {
   throw new Error("validateApd export is missing");
@@ -56,16 +57,32 @@ if (typeof sdk.validateAer !== "function") {
 if (typeof sdk.compareAerToApd !== "function") {
   throw new Error("compareAerToApd export is missing");
 }
+
+if (typeof nodeSdk.verifyAerIntegrity !== "function") {
+  throw new Error("verifyAerIntegrity export is missing from @apd-spec/sdk/node");
+}
+
+if (typeof nodeSdk.sealAer !== "function") {
+  throw new Error("sealAer export is missing from @apd-spec/sdk/node");
+}
+
+nodeSdk.loadAerSchema("0.3.0");
 EOF
 
 echo "Checking locally installed CLI..."
 ./node_modules/.bin/apd validate "$ROOT_DIR/examples/invoice-logging.apd.json" --quiet
 ./node_modules/.bin/apd aer compare "$ROOT_DIR/examples/invoice-logging.apd.json" "$ROOT_DIR/examples/invoice-logging.aer-v0.2.json" --json >/dev/null
+./node_modules/.bin/apd aer validate "$ROOT_DIR/examples/invoice-logging.aer-v0.3.json" --quiet --strict
+./node_modules/.bin/apd aer verify "$ROOT_DIR/examples/invoice-logging.aer-v0.3.json" --public-key "$ROOT_DIR/examples/keys/aer-v0.3-test-ed25519-public.spki.b64" >/dev/null
+./node_modules/.bin/apd aer compare "$ROOT_DIR/examples/invoice-logging.apd.json" "$ROOT_DIR/examples/invoice-logging.aer-v0.3.json" --json >/dev/null
 
 echo "Checking prefix-installed CLI..."
 mkdir -p "$GLOBAL_PREFIX"
 npm install -g --prefix "$GLOBAL_PREFIX" --cache "$CACHE_DIR" "$sdk_path" "$cli_path" >/dev/null
 "$GLOBAL_PREFIX/bin/apd" validate "$ROOT_DIR/examples/invoice-logging.apd.json" --quiet
 "$GLOBAL_PREFIX/bin/apd" aer compare "$ROOT_DIR/examples/invoice-logging.apd.json" "$ROOT_DIR/examples/invoice-logging.aer-v0.2.json" --json >/dev/null
+"$GLOBAL_PREFIX/bin/apd" aer validate "$ROOT_DIR/examples/invoice-logging.aer-v0.3.json" --quiet --strict
+"$GLOBAL_PREFIX/bin/apd" aer verify "$ROOT_DIR/examples/invoice-logging.aer-v0.3.json" --public-key "$ROOT_DIR/examples/keys/aer-v0.3-test-ed25519-public.spki.b64" >/dev/null
+"$GLOBAL_PREFIX/bin/apd" aer compare "$ROOT_DIR/examples/invoice-logging.apd.json" "$ROOT_DIR/examples/invoice-logging.aer-v0.3.json" --json >/dev/null
 
 echo "Publish smoke checks passed."

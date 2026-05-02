@@ -1,4 +1,5 @@
 const assert = require("assert").strict;
+const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -10,6 +11,8 @@ const validateBin = path.join(root, "packages/cli/bin/apd-validate.js");
 const invoice = path.join(root, "examples/invoice-logging.apd.json");
 const aerV01 = path.join(root, "examples/invoice-logging.aer.json");
 const aerV02 = path.join(root, "examples/invoice-logging.aer-v0.2.json");
+const aerV03 = path.join(root, "examples/invoice-logging.aer-v0.3.json");
+const aerV03PublicKey = path.join(root, "examples/keys/aer-v0.3-test-ed25519-public.spki.b64");
 const aerMismatch = path.join(root, "fixtures/aer/compare/procedure-mismatch.aer-v0.2.json");
 const invalid = path.join(root, "fixtures/invalid/missing-kind.apd.json");
 const invalidAer = path.join(root, "fixtures/aer/invalid/dangling-evidence.aer-v0.2.json");
@@ -37,6 +40,11 @@ function execNodeFailure(args, env = {}) {
 
 function run() {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "apd-cli-test-"));
+  const testKeypair = crypto.generateKeyPairSync("ed25519");
+  const sealPrivateKey = path.join(tempDir, "test-ed25519-private.pkcs8.b64");
+  const sealPublicKey = path.join(tempDir, "test-ed25519-public.spki.b64");
+  fs.writeFileSync(sealPrivateKey, testKeypair.privateKey.export({ format: "der", type: "pkcs8" }).toString("base64") + "\n", "utf8");
+  fs.writeFileSync(sealPublicKey, testKeypair.publicKey.export({ format: "der", type: "spki" }).toString("base64") + "\n", "utf8");
   const scaffoldPath = path.join(tempDir, "customer.refund.apd.json");
   const initOutput = execNode([cliBin, "init", scaffoldPath]);
   assert.equal(initOutput.includes("Wrote"), true, "init should acknowledge the scaffolded file");
@@ -273,6 +281,21 @@ function run() {
   assert.equal(aerV02ValidateOutput.includes("PASS"), true, "aer validate should support v0.2 receipts");
   assert.equal(aerV02ValidateOutput.includes("WARN"), false, "strict aer validate should be clean for the v0.2 example");
 
+  const aerV03ValidateOutput = execNode([cliBin, "aer", "validate", aerV03, "--strict"]);
+  assert.equal(aerV03ValidateOutput.includes("PASS"), true, "aer validate should support v0.3 receipts");
+  assert.equal(aerV03ValidateOutput.includes("WARN"), false, "strict aer validate should be clean for the v0.3 example");
+
+  const aerVerifyOutput = execNode([cliBin, "aer", "verify", aerV03, "--public-key", aerV03PublicKey]);
+  assert.equal(aerVerifyOutput.includes("PASS"), true, "aer verify should pass for the bundled signed v0.3 example");
+  assert.equal(aerVerifyOutput.includes("Signature: valid"), true, "aer verify should report signature status");
+  const aerVerifyUntrustedFailure = execNodeFailure([cliBin, "aer", "verify", aerV03]);
+  assert.equal(aerVerifyUntrustedFailure.status, 1, "aer verify should fail signed receipts without a trusted public key");
+  assert.equal(
+    String(aerVerifyUntrustedFailure.stdout).includes("trusted public key"),
+    true,
+    "aer verify should explain that a trusted public key is required"
+  );
+
   const aerInfoOutput = execNode([cliBin, "aer", "info", aerV02]);
   assert.equal(aerInfoOutput.includes("Execution:"), true, "aer info should print execution metadata");
   assert.equal(aerInfoOutput.includes("Final outputs:"), true, "aer info should summarize final outputs");
@@ -280,6 +303,9 @@ function run() {
   const aerCompareOutput = execNode([cliBin, "aer", "compare", invoice, aerV02]);
   assert.equal(aerCompareOutput.includes("PASS"), true, "aer compare should pass for the valid invoice pair");
   assert.equal(aerCompareOutput.includes("differences: 0"), true, "aer compare should print zero differences for the happy path");
+
+  const aerCompareV03Output = execNode([cliBin, "aer", "compare", invoice, aerV03]);
+  assert.equal(aerCompareV03Output.includes("PASS"), true, "aer compare should pass for the valid v0.3 invoice pair");
 
   const aerCompareJson = execNode([cliBin, "aer", "compare", invoice, aerV02, "--json"]);
   assert.equal(aerCompareJson.includes('"conforms": true'), true, "aer compare --json should return machine-readable output");
@@ -299,6 +325,65 @@ function run() {
     true,
     "aer compare failure should print the difference kind"
   );
+
+  const sealV02Failure = execNodeFailure([
+    cliBin,
+    "aer",
+    "seal",
+    aerV02,
+    "--private-key",
+    sealPrivateKey,
+    "--public-key",
+    sealPublicKey,
+    "--force"
+  ]);
+  assert.equal(sealV02Failure.status, 1, "aer seal should require v0.3 input");
+  assert.equal(
+    String(sealV02Failure.stderr).includes("requires an AER v0.3 document"),
+    true,
+    "aer seal should explain that the input must be bumped to v0.3"
+  );
+
+  const sealInput = path.join(tempDir, "invoice-unsealed.aer-v0.3.json");
+  const sealOutput = path.join(tempDir, "invoice-sealed.aer-v0.3.json");
+  const unsealed = JSON.parse(fs.readFileSync(aerV02, "utf8"));
+  unsealed.spec_version = "0.3.0";
+  unsealed.integrity = { chain_hash: "sha256:pending" };
+  fs.writeFileSync(sealInput, JSON.stringify(unsealed, null, 2) + "\n", "utf8");
+  const sealCommandOutput = execNode([
+    cliBin,
+    "aer",
+    "seal",
+    sealInput,
+    "--private-key",
+    sealPrivateKey,
+    "--public-key",
+    sealPublicKey,
+    "--attest-executor",
+    "--output",
+    sealOutput
+  ]);
+  assert.equal(sealCommandOutput.includes("Wrote"), true, "aer seal should write a sealed AER");
+  assert.equal(execNode([cliBin, "aer", "verify", sealOutput, "--public-key", sealPublicKey]).includes("PASS"), true, "sealed output should verify");
+  const sealOverwriteFailure = execNodeFailure([
+    cliBin,
+    "aer",
+    "seal",
+    sealOutput,
+    "--private-key",
+    sealPrivateKey,
+    "--public-key",
+    sealPublicKey
+  ]);
+  assert.equal(sealOverwriteFailure.status, 1, "aer seal should refuse to overwrite existing chain_hash without --force");
+
+  const tamperedV03 = path.join(tempDir, "invoice-tampered.aer-v0.3.json");
+  const tamperedDocument = JSON.parse(fs.readFileSync(aerV03, "utf8"));
+  tamperedDocument.final_outputs.tracker_row = "April!B43";
+  fs.writeFileSync(tamperedV03, JSON.stringify(tamperedDocument, null, 2) + "\n", "utf8");
+  const aerVerifyFailure = execNodeFailure([cliBin, "aer", "verify", tamperedV03, "--public-key", aerV03PublicKey]);
+  assert.equal(aerVerifyFailure.status, 1, "aer verify should fail after a byte-level content change");
+  assert.equal(String(aerVerifyFailure.stdout).includes("Chain hash: invalid"), true, "aer verify failure should explain the chain hash failure");
 
   console.log("All @apd-spec/cli checks passed.");
 }

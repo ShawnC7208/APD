@@ -15,7 +15,8 @@ function loadApdSchema() {
 function loadAerSchema(version = "0.2.0") {
   const filenames = {
     "0.1.0": "agent-execution-record-v0.1.schema.json",
-    "0.2.0": "agent-execution-record-v0.2.schema.json"
+    "0.2.0": "agent-execution-record-v0.2.schema.json",
+    "0.3.0": "agent-execution-record-v0.3.schema.json"
   };
 
   if (!filenames[version]) {
@@ -1944,6 +1945,10 @@ function isAerV02(document) {
   return document?.spec_version === "0.2.0";
 }
 
+function isAerV02OrLater(document) {
+  return document?.spec_version === "0.2.0" || document?.spec_version === "0.3.0";
+}
+
 function collectAerEvidenceRefs(document) {
   const refs = [];
 
@@ -2079,7 +2084,7 @@ function aerTemporalDiagnostics(document) {
     });
   });
 
-  if (isAerV02(document)) {
+  if (isAerV02OrLater(document)) {
     (document.transitions_taken || []).forEach((transition, index) => {
       const takenAt = parseTimestamp(transition.taken_at);
       if (startedAt !== null && takenAt !== null && takenAt < startedAt) {
@@ -2129,6 +2134,26 @@ function aerTemporalDiagnostics(document) {
 function aerIntegrityDiagnostics(document) {
   const diagnostics = [];
   const evidenceIds = new Set();
+
+  if (document.spec_version === "0.3.0") {
+    if (!/^sha256:[0-9a-f]{64}$/.test(document.integrity?.chain_hash || "")) {
+      diagnostics.push({
+        kind: "warning",
+        source: "best-practice",
+        path: "/integrity/chain_hash",
+        message: "AER v0.3 integrity.chain_hash should use sha256:<64 lowercase hex>; legacy strings validate only for v0.2 migration compatibility"
+      });
+    }
+
+    if (typeof document.integrity?.signature === "string") {
+      diagnostics.push({
+        kind: "warning",
+        source: "best-practice",
+        path: "/integrity/signature",
+        message: "AER v0.3 bare-string signatures are deprecated and cannot be verified by the v0.3 integrity helpers"
+      });
+    }
+  }
 
   (document.evidence || []).forEach((item, index) => {
     if (evidenceIds.has(item.id)) {
@@ -2257,21 +2282,21 @@ function aerV02Diagnostics(document) {
 function aerBestPracticeDiagnostics(document) {
   const diagnostics = [];
 
-  if (isAerV02(document) && document.overall_outcome === "success" && !document.final_outputs) {
+  if (isAerV02OrLater(document) && document.overall_outcome === "success" && !document.final_outputs) {
     diagnostics.push({
       kind: "warning",
       source: "best-practice",
       path: "/final_outputs",
-      message: "Successful AER v0.2 executions should include final_outputs for APD conformance checks"
+      message: "Successful AER v0.2+ executions should include final_outputs for APD conformance checks"
     });
   }
 
-  if (isAerV02(document) && document.node_executions.length > 1 && document.transitions_taken.length === 0) {
+  if (isAerV02OrLater(document) && document.node_executions.length > 1 && document.transitions_taken.length === 0) {
     diagnostics.push({
       kind: "warning",
       source: "best-practice",
       path: "/transitions_taken",
-      message: "AER v0.2 executions with multiple node executions should usually record transitions_taken"
+      message: "AER v0.2+ executions with multiple node executions should usually record transitions_taken"
     });
   }
 
@@ -2281,7 +2306,7 @@ function aerBestPracticeDiagnostics(document) {
 function validateAer(input, options = {}) {
   const document = parseAer(input);
   const diagnostics = [];
-  const supportedVersions = new Set(["0.1.0", "0.2.0"]);
+  const supportedVersions = new Set(["0.1.0", "0.2.0", "0.3.0"]);
 
   if (!supportedVersions.has(document.spec_version)) {
     diagnostics.push({
@@ -2307,7 +2332,7 @@ function validateAer(input, options = {}) {
     diagnostics.push(...aerTemporalDiagnostics(document));
     diagnostics.push(...aerIntegrityDiagnostics(document));
 
-    if (isAerV02(document)) {
+    if (isAerV02OrLater(document)) {
       diagnostics.push(...aerV02Diagnostics(document));
     }
 
@@ -2338,8 +2363,8 @@ function summarizeAer(input) {
     nodeExecutions: (document.node_executions || []).length,
     approvals: (document.approvals || []).length,
     evidence: (document.evidence || []).length,
-    transitionsTaken: isAerV02(document) ? (document.transitions_taken || []).length : null,
-    finalOutputKeys: isAerV02(document) && document.final_outputs ? Object.keys(document.final_outputs) : []
+    transitionsTaken: isAerV02OrLater(document) ? (document.transitions_taken || []).length : null,
+    finalOutputKeys: isAerV02OrLater(document) && document.final_outputs ? Object.keys(document.final_outputs) : []
   };
 }
 
@@ -2418,21 +2443,21 @@ function compareAerToApd(apdInput, aerInput) {
     });
   }
 
-  if (aerDocument.spec_version !== "0.2.0") {
+  if (!["0.2.0", "0.3.0"].includes(aerDocument.spec_version)) {
     differences.push(
       makeComparisonDifference(
         "unsupported-aer-version",
         "/spec_version",
-        "compareAerToApd only supports AER v0.2.0 receipts",
+        "compareAerToApd only supports AER v0.2.0 and v0.3.0 receipts",
         {
-          expected: "0.2.0",
+          expected: "0.2.0 or 0.3.0",
           actual: aerDocument.spec_version
         }
       )
     );
   }
 
-  if (!apdValidation.valid || aerDocument.spec_version !== "0.2.0") {
+  if (!apdValidation.valid || !["0.2.0", "0.3.0"].includes(aerDocument.spec_version)) {
     return {
       conforms: false,
       summary: {
@@ -2570,7 +2595,7 @@ function compareAerToApd(apdInput, aerInput) {
         makeComparisonDifference(
           "missing-final-outputs",
           "/final_outputs",
-          "Successful AER v0.2 executions must include final_outputs to support APD conformance"
+          "Successful AER v0.2+ executions must include final_outputs to support APD conformance"
         )
       );
     } else {

@@ -1,0 +1,388 @@
+{
+  "kind": "agent-execution-record",
+  "spec_version": "0.3.0",
+  "execution_id": "exec_invoice_logging_002",
+  "procedure_ref": {
+    "kind": "agent-procedure",
+    "procedure_id": "log-invoice-to-tracker",
+    "revision": "1",
+    "spec_version": "0.1.0"
+  },
+  "executor": {
+    "agent": "claude-sonnet-4.5",
+    "adapter": "apd-strands-reference",
+    "environment": "local-demo",
+    "recorder_attestation": {
+      "public_key": "MCowBQYDK2VwAyEAJx3EGEhAJull1l1gkp7judiO+xLVHpNjmWRmZXI/k4o=",
+      "signature": "sxMToDL/DxqsUYvb4PXaBgtcl7hNnhA33enhzwFsUP7QPJtJ5MyWyO/slTYN3AxNuaAsI3FEYOXFYlm3rf3lCQ==",
+      "attested_at": "2026-04-14T16:04:13Z"
+    }
+  },
+  "started_at": "2026-04-14T16:00:00Z",
+  "completed_at": "2026-04-14T16:04:12Z",
+  "overall_outcome": "success",
+  "node_executions": [
+    {
+      "node_id": "step_1",
+      "entered_at": "2026-04-14T16:00:02Z",
+      "exited_at": "2026-04-14T16:00:26Z",
+      "outcome": "completed",
+      "attempt": 1,
+      "output_bindings": {
+        "vendor_name": "Acme Corp",
+        "invoice_amount": 15000,
+        "sender_email": "finance@vendor.example"
+      },
+      "completion_check_results": [
+        {
+          "check": "The vendor name, amount, and sender email have been identified.",
+          "passed": true,
+          "evaluated_at": "2026-04-14T16:00:25Z",
+          "evidence_refs": [
+            "evidence:email:invoice-1"
+          ]
+        }
+      ],
+      "evidence_refs": [
+        "evidence:email:invoice-1"
+      ],
+      "extensions": {
+        "eu_ai_act": {
+          "article_12_purpose": [
+            "post_market",
+            "deployer_monitoring"
+          ]
+        }
+      }
+    },
+    {
+      "node_id": "step_2",
+      "entered_at": "2026-04-14T16:00:27Z",
+      "exited_at": "2026-04-14T16:00:48Z",
+      "outcome": "completed",
+      "attempt": 1,
+      "completion_check_results": [
+        {
+          "check": "The tracker workbook is open and visible.",
+          "passed": true,
+          "evaluated_at": "2026-04-14T16:00:47Z",
+          "evidence_refs": [
+            "evidence:screenshot:tracker-open"
+          ]
+        }
+      ],
+      "evidence_refs": [
+        "evidence:screenshot:tracker-open"
+      ],
+      "extensions": {
+        "eu_ai_act": {
+          "article_12_purpose": [
+            "post_market",
+            "deployer_monitoring"
+          ]
+        }
+      }
+    },
+    {
+      "node_id": "step_3",
+      "entered_at": "2026-04-14T16:01:04Z",
+      "exited_at": "2026-04-14T16:01:29Z",
+      "outcome": "completed",
+      "attempt": 1,
+      "input_bindings": {
+        "vendor_name": "Acme Corp",
+        "invoice_amount": 15000
+      },
+      "output_bindings": {
+        "tracker_row": "April!B42"
+      },
+      "pre_state_check_results": [
+        {
+          "check": "The tracker workbook is open.",
+          "passed": true,
+          "evaluated_at": "2026-04-14T16:01:05Z",
+          "evidence_refs": [
+            "evidence:screenshot:tracker-open"
+          ]
+        }
+      ],
+      "completion_check_results": [
+        {
+          "check": "The vendor name and amount appear in the selected row.",
+          "passed": true,
+          "evaluated_at": "2026-04-14T16:01:28Z",
+          "evidence_refs": [
+            "evidence:screenshot:tracker-row-42"
+          ]
+        }
+      ],
+      "tool_invocations": [
+        {
+          "tool": "spreadsheet-edit",
+          "started_at": "2026-04-14T16:01:10Z",
+          "completed_at": "2026-04-14T16:01:12Z",
+          "duration_ms": 2140,
+          "outcome": "success",
+          "evidence_refs": [
+            "evidence:screenshot:tracker-row-42"
+          ]
+        }
+      ],
+      "evidence_refs": [
+        "evidence:screenshot:tracker-row-42"
+      ],
+      "extensions": {
+        "eu_ai_act": {
+          "article_12_purpose": [
+            "post_market",
+            "deployer_monitoring"
+          ]
+        }
+      }
+    },
+    {
+      "node_id": "decision_1",
+      "entered_at": "2026-04-14T16:01:30Z",
+      "exited_at": "2026-04-14T16:01:31Z",
+      "outcome": "completed",
+      "attempt": 1,
+      "input_bindings": {
+        "invoice_amount": 15000,
+        "approval_threshold": 5000
+      },
+      "output_bindings": {
+        "selected_transition": "approval_1"
+      },
+      "extensions": {
+        "eu_ai_act": {
+          "article_12_purpose": [
+            "post_market",
+            "deployer_monitoring"
+          ]
+        }
+      }
+    },
+    {
+      "node_id": "approval_1",
+      "entered_at": "2026-04-14T16:01:45Z",
+      "exited_at": "2026-04-14T16:02:10Z",
+      "outcome": "approved",
+      "attempt": 1
+    },
+    {
+      "node_id": "step_4",
+      "entered_at": "2026-04-14T16:02:37Z",
+      "exited_at": "2026-04-14T16:02:56Z",
+      "outcome": "completed",
+      "attempt": 1,
+      "input_bindings": {
+        "sender_email": "finance@vendor.example"
+      },
+      "completion_check_results": [
+        {
+          "check": "A confirmation reply draft is ready.",
+          "passed": true,
+          "evaluated_at": "2026-04-14T16:02:55Z",
+          "evidence_refs": [
+            "evidence:email:draft-confirmation-1"
+          ]
+        }
+      ],
+      "evidence_refs": [
+        "evidence:email:draft-confirmation-1"
+      ],
+      "extensions": {
+        "eu_ai_act": {
+          "article_12_purpose": [
+            "post_market",
+            "deployer_monitoring"
+          ]
+        }
+      }
+    },
+    {
+      "node_id": "approval_2",
+      "entered_at": "2026-04-14T16:03:02Z",
+      "exited_at": "2026-04-14T16:03:12Z",
+      "outcome": "approved",
+      "attempt": 1
+    },
+    {
+      "node_id": "step_5",
+      "entered_at": "2026-04-14T16:03:18Z",
+      "exited_at": "2026-04-14T16:03:52Z",
+      "outcome": "completed",
+      "attempt": 1,
+      "output_bindings": {
+        "confirmation_sent": "sent"
+      },
+      "completion_check_results": [
+        {
+          "check": "The confirmation email has been sent.",
+          "passed": true,
+          "evaluated_at": "2026-04-14T16:03:51Z",
+          "evidence_refs": [
+            "evidence:email:confirmation-1"
+          ]
+        }
+      ],
+      "tool_invocations": [
+        {
+          "tool": "email-send",
+          "started_at": "2026-04-14T16:03:40Z",
+          "completed_at": "2026-04-14T16:03:44Z",
+          "duration_ms": 3910,
+          "outcome": "success",
+          "evidence_refs": [
+            "evidence:email:confirmation-1"
+          ]
+        }
+      ],
+      "evidence_refs": [
+        "evidence:email:confirmation-1"
+      ],
+      "extensions": {
+        "eu_ai_act": {
+          "article_12_purpose": [
+            "post_market",
+            "deployer_monitoring"
+          ]
+        }
+      }
+    },
+    {
+      "node_id": "done",
+      "entered_at": "2026-04-14T16:04:00Z",
+      "exited_at": "2026-04-14T16:04:12Z",
+      "outcome": "completed",
+      "attempt": 1
+    }
+  ],
+  "transitions_taken": [
+    {
+      "from": "step_1",
+      "to": "step_2",
+      "taken_at": "2026-04-14T16:00:27Z"
+    },
+    {
+      "from": "step_2",
+      "to": "step_3",
+      "taken_at": "2026-04-14T16:01:04Z"
+    },
+    {
+      "from": "step_3",
+      "to": "decision_1",
+      "taken_at": "2026-04-14T16:01:30Z"
+    },
+    {
+      "from": "decision_1",
+      "to": "approval_1",
+      "taken_at": "2026-04-14T16:01:32Z",
+      "condition": "invoice_amount > approval_threshold"
+    },
+    {
+      "from": "approval_1",
+      "to": "step_4",
+      "taken_at": "2026-04-14T16:02:37Z",
+      "condition": "approval granted"
+    },
+    {
+      "from": "step_4",
+      "to": "approval_2",
+      "taken_at": "2026-04-14T16:03:02Z"
+    },
+    {
+      "from": "approval_2",
+      "to": "step_5",
+      "taken_at": "2026-04-14T16:03:18Z",
+      "condition": "approval granted"
+    },
+    {
+      "from": "step_5",
+      "to": "done",
+      "taken_at": "2026-04-14T16:04:00Z"
+    }
+  ],
+  "approvals": [
+    {
+      "node_id": "approval_1",
+      "decision": "approved",
+      "decided_by": "finance-manager@example.com",
+      "decided_at": "2026-04-14T16:02:06Z",
+      "comment": "Threshold exception approved.",
+      "evidence_refs": [
+        "evidence:user-confirmation:approval-1"
+      ]
+    },
+    {
+      "node_id": "approval_2",
+      "decision": "approved",
+      "decided_by": "operator@example.com",
+      "decided_at": "2026-04-14T16:03:09Z",
+      "comment": "External reply confirmed.",
+      "evidence_refs": [
+        "evidence:user-confirmation:approval-2"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence:email:invoice-1",
+      "type": "email",
+      "reference": "mailbox://finance/inbox/2026-04-14/001"
+    },
+    {
+      "id": "evidence:screenshot:tracker-open",
+      "type": "screenshot",
+      "reference": "artifacts/screenshots/tracker-open.png"
+    },
+    {
+      "id": "evidence:screenshot:tracker-row-42",
+      "type": "screenshot",
+      "reference": "artifacts/screenshots/tracker-row-42.png"
+    },
+    {
+      "id": "evidence:email:draft-confirmation-1",
+      "type": "email",
+      "reference": "mailbox://finance/drafts/2026-04-14/003"
+    },
+    {
+      "id": "evidence:email:confirmation-1",
+      "type": "email",
+      "reference": "mailbox://finance/sent/2026-04-14/004"
+    },
+    {
+      "id": "evidence:user-confirmation:approval-1",
+      "type": "user_confirmation",
+      "reference": "approvals://finance/2026-04-14/approval-1"
+    },
+    {
+      "id": "evidence:user-confirmation:approval-2",
+      "type": "user_confirmation",
+      "reference": "approvals://operator/2026-04-14/approval-2"
+    }
+  ],
+  "final_outputs": {
+    "tracker_row": "April!B42",
+    "confirmation_sent": "sent"
+  },
+  "integrity": {
+    "chain_hash": "sha256:4dacc96f7599d3912e4028191f19d0d51c1b33f6aa05a3e4da23c7dbc0306a5a",
+    "signature": {
+      "algorithm": "ed25519",
+      "public_key": "MCowBQYDK2VwAyEAJx3EGEhAJull1l1gkp7judiO+xLVHpNjmWRmZXI/k4o=",
+      "value": "IHxb8oy/8R3gMajD7YlszMGsQe7vHLLNEZeOvbzvglC/XqUacXs2vlHe9/VXN8p8brzT4Ql6mimty1IS5wpDCA=="
+    }
+  },
+  "extensions": {
+    "observability": {
+      "trace_ref": "otel://local-demo/traces/invoice-logging-002"
+    },
+    "eu_ai_act": {
+      "article_12_purpose": [
+        "post_market",
+        "deployer_monitoring"
+      ]
+    }
+  }
+}

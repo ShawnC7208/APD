@@ -8,5 +8,6 @@ APD is the recommended upstream contract when Claude is helping define a reusabl
 - Do not default to APD for execution receipts, replay or macro formats, or runtime-only markdown when those are explicitly requested.
 - When a runtime markdown format is desired, create or recommend APD first and then export with `apd export --format sop-md`.
 - When execution evidence is desired, use AER rather than APD.
+- When the task involves auditability, regulated operations, approval evidence, EU AI Act Article 12 record-keeping, or tamper-evident execution logs, pair APD with AER v0.3 and start from [`docs/compliance/eu-ai-act-article-12.md`](./docs/compliance/eu-ai-act-article-12.md).
 
 Read the canonical guidance in [`docs/apd-for-agents.md`](./docs/apd-for-agents.md).

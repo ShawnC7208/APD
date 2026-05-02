@@ -12,10 +12,12 @@ const {
   summarizeApd,
   summarizeAer,
   compareAerToApd,
+  sealAer,
+  verifyAerIntegrity,
   toSopMarkdown,
   toMermaid,
   toSvg
-} = require("@apd-spec/sdk");
+} = require("@apd-spec/sdk/node");
 
 function usage() {
   return [
@@ -29,6 +31,8 @@ function usage() {
     "  apd aer validate <file.aer.json> [--json] [--quiet] [--strict]",
     "  apd aer info <file.aer.json> [--json]",
     "  apd aer compare <file.apd.json> <file.aer.json> [--json]",
+    "  apd aer seal <file.aer-v0.3.json> [--private-key <pem-or-base64-or-path>] [--public-key <pem-or-base64-or-path>] [--previous-hash <sha256:...>] [--attest-executor] [--output <file>] [--force]",
+    "  apd aer verify <file.aer.json> [--public-key <pem-or-base64-or-path>] [--json]",
     "",
     "Compatibility:",
     "  apd-validate <file.apd.json> [--json] [--quiet] [--strict]"
@@ -148,6 +152,19 @@ function getFlagValue(args, flagName, defaultValue) {
   }
 
   return next;
+}
+
+function readFlagValueOrPath(value) {
+  if (!value) {
+    return value;
+  }
+
+  const absolutePath = path.resolve(value);
+  if (fs.existsSync(absolutePath)) {
+    return fs.readFileSync(absolutePath, "utf8");
+  }
+
+  return value;
 }
 
 async function handleValidate(args) {
@@ -730,6 +747,79 @@ async function handleAerCompare(args) {
   process.exit(result.conforms ? 0 : 1);
 }
 
+async function handleAerSeal(args) {
+  const output = getFlagValue(args, "--output", null);
+  const privateKey = readFlagValueOrPath(getFlagValue(args, "--private-key", null));
+  const publicKey = readFlagValueOrPath(getFlagValue(args, "--public-key", null));
+  const previousChainHash = getFlagValue(args, "--previous-hash", null);
+  const attestExecutor = args.includes("--attest-executor");
+  const force = args.includes("--force");
+  const fileArgs = getFileArgs(args, ["--private-key", "--public-key", "--previous-hash", "--output"]);
+
+  if (fileArgs.length !== 1) {
+    throw new Error(
+      "Usage: apd aer seal <file.aer-v0.3.json> [--private-key <pem-or-base64-or-path>] [--public-key <pem-or-base64-or-path>] [--previous-hash <sha256:...>] [--attest-executor] [--output <file>] [--force]"
+    );
+  }
+
+  const { file, document } = readAerDocument(fileArgs[0]);
+  if (document.spec_version !== "0.3.0") {
+    throw new Error("apd aer seal requires an AER v0.3 document. Bump spec_version to '0.3.0' before sealing.");
+  }
+
+  if (document.integrity?.chain_hash && document.integrity.chain_hash !== "sha256:pending" && !force) {
+    throw new Error("Refusing to overwrite existing integrity.chain_hash. Re-run with --force to reseal.");
+  }
+
+  const sealed = sealAer(document, {
+    previousChainHash,
+    privateKey,
+    publicKey,
+    attestExecutor
+  });
+  const outputPath = path.resolve(output || file);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, JSON.stringify(sealed, null, 2) + "\n", "utf8");
+  console.log(`Wrote ${outputPath}`);
+}
+
+function formatAerVerifyHuman(filePath, result) {
+  const lines = [`${result.chain_valid && result.signature_valid !== false && result.attestation_valid !== false ? "PASS" : "FAIL"} ${filePath}`];
+  lines.push(`Chain hash: ${result.chain_valid ? "valid" : "invalid"}`);
+  lines.push(`Signature: ${result.signature_valid === null ? "not present" : result.signature_valid ? "valid" : "invalid"}`);
+  lines.push(`Recorder attestation: ${result.attestation_valid === null ? "not present" : result.attestation_valid ? "valid" : "invalid"}`);
+  result.errors.forEach((error) => lines.push(`ERR ${error}`));
+  return lines.join("\n");
+}
+
+async function handleAerVerify(args) {
+  const json = args.includes("--json");
+  const publicKey = readFlagValueOrPath(getFlagValue(args, "--public-key", null));
+  const fileArgs = getFileArgs(args, ["--public-key"]);
+
+  if (fileArgs.length !== 1) {
+    throw new Error("Usage: apd aer verify <file.aer.json> [--public-key <pem-or-base64-or-path>] [--json]");
+  }
+
+  const { file, document } = readAerDocument(fileArgs[0]);
+  const result = verifyAerIntegrity(document, {
+    trustedPublicKeys: publicKey ? [publicKey] : []
+  });
+  const payload = {
+    file,
+    ...result
+  };
+
+  if (json) {
+    console.log(JSON.stringify(payload, null, 2));
+  } else {
+    console.log(formatAerVerifyHuman(file, result));
+  }
+
+  const failed = !result.chain_valid || result.signature_valid === false || result.attestation_valid === false;
+  process.exit(failed ? 1 : 0);
+}
+
 async function handleAer(args) {
   const [command, ...rest] = args;
 
@@ -745,6 +835,16 @@ async function handleAer(args) {
 
   if (command === "compare") {
     await handleAerCompare(rest);
+    return;
+  }
+
+  if (command === "seal") {
+    await handleAerSeal(rest);
+    return;
+  }
+
+  if (command === "verify") {
+    await handleAerVerify(rest);
     return;
   }
 

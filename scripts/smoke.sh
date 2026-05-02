@@ -49,7 +49,10 @@ done
 echo "Validating AER example..."
 run_validate_aer examples/invoice-logging.aer.json
 run_validate_aer examples/invoice-logging.aer-v0.2.json
+run_validate_aer examples/invoice-logging.aer-v0.3.json
 run_compare_aer examples/invoice-logging.apd.json examples/invoice-logging.aer-v0.2.json
+run_compare_aer examples/invoice-logging.apd.json examples/invoice-logging.aer-v0.3.json
+node packages/cli/bin/apd.js aer verify examples/invoice-logging.aer-v0.3.json --public-key examples/keys/aer-v0.3-test-ed25519-public.spki.b64 >/dev/null
 
 echo "Exercising adapter exporters..."
 tmp_dir="$(mktemp -d)"

@@ -1,4 +1,5 @@
 const assert = require("assert").strict;
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const {
@@ -19,6 +20,12 @@ const {
   toMermaid,
   toSvg
 } = require("..");
+const {
+  canonicalizeJson,
+  computeAerChainHash,
+  sealAer,
+  verifyAerIntegrity
+} = require("../node");
 const browserSdk = require("../browser");
 
 const root = path.resolve(__dirname, "../../..");
@@ -54,6 +61,11 @@ async function run() {
     readJson("packages/sdk-typescript/schema/agent-execution-record-v0.2.schema.json"),
     readJson("schema/agent-execution-record-v0.2.schema.json"),
     "bundled AER v0.2 schema should stay in sync with the root schema"
+  );
+  assert.deepEqual(
+    readJson("packages/sdk-typescript/schema/agent-execution-record-v0.3.schema.json"),
+    readJson("schema/agent-execution-record-v0.3.schema.json"),
+    "bundled AER v0.3 schema should stay in sync with the root schema"
   );
 
   const invoice = readJson("examples/invoice-logging.apd.json");
@@ -218,6 +230,103 @@ async function run() {
   const aerV02Validation = validateAer(aerV02, { strict: true });
   assert.equal(aerV02Validation.valid, true, "AER v0.2 example should validate");
   assert.deepEqual(aerV02Validation.diagnostics, [], "AER v0.2 example should be strict-clean");
+
+  const aerV03 = readJson("examples/invoice-logging.aer-v0.3.json");
+  const aerV03Validation = validateAer(aerV03, { strict: true });
+  assert.equal(aerV03Validation.valid, true, "AER v0.3 example should validate");
+  assert.deepEqual(aerV03Validation.diagnostics, [], "AER v0.3 example should be strict-clean");
+
+  const badV03Hash = clone(aerV03);
+  badV03Hash.integrity.chain_hash = "not-a-sha";
+  const badV03HashValidation = validateAer(badV03Hash);
+  assert.equal(badV03HashValidation.valid, true, "AER v0.3 should accept legacy chain_hash strings for v0.2 migration compatibility");
+  assert.equal(
+    badV03HashValidation.diagnostics.some((diagnostic) => diagnostic.path === "/integrity/chain_hash"),
+    true,
+    "AER v0.3 should warn when chain_hash is not sha256-prefixed lowercase hex"
+  );
+
+  const badV03Signature = clone(aerV03);
+  badV03Signature.integrity.signature.algorithm = "rsa";
+  assert.equal(validateAer(badV03Signature).valid, false, "AER v0.3 should reject unknown signature algorithms");
+
+  const badV03Anchor = clone(aerV03);
+  badV03Anchor.integrity.transparency_anchor = {
+    type: "unknown",
+    reference: "anchor:test",
+    anchored_at: "2026-04-14T16:04:13Z"
+  };
+  assert.equal(validateAer(badV03Anchor).valid, false, "AER v0.3 should reject unknown transparency anchor types");
+
+  assert.equal(
+    canonicalizeJson({ b: 1, a: ["x", { d: false, c: true }] }),
+    canonicalizeJson({ a: ["x", { c: true, d: false }], b: 1 }),
+    "canonicalizeJson should be stable across key reorderings"
+  );
+  assert.equal(
+    computeAerChainHash(aerV03),
+    computeAerChainHash({ ...aerV03, integrity: { chain_hash: "sha256:" + "0".repeat(64) } }),
+    "computeAerChainHash should ignore the existing integrity block"
+  );
+  const testKeypair = crypto.generateKeyPairSync("ed25519");
+  const testPrivateKey = testKeypair.privateKey.export({ format: "der", type: "pkcs8" }).toString("base64");
+  const testPublicKey = testKeypair.publicKey.export({ format: "der", type: "spki" }).toString("base64");
+  const sealedRoundTrip = sealAer(
+    { ...clone(aerV02), spec_version: "0.3.0" },
+    { privateKey: testPrivateKey, publicKey: testPublicKey, attestExecutor: true, attestedAt: "2026-04-14T16:04:13Z" }
+  );
+  assert.deepEqual(
+    verifyAerIntegrity(sealedRoundTrip, { trustedPublicKeys: [testPublicKey] }),
+    { chain_valid: true, signature_valid: true, attestation_valid: true, errors: [] },
+    "sealAer and verifyAerIntegrity should round-trip"
+  );
+  const untrustedRoundTrip = verifyAerIntegrity(sealedRoundTrip);
+  assert.equal(untrustedRoundTrip.signature_valid, false, "verifyAerIntegrity should not trust embedded signature keys by default");
+  assert.equal(untrustedRoundTrip.attestation_valid, false, "verifyAerIntegrity should not trust embedded attestation keys by default");
+  assert.equal(
+    untrustedRoundTrip.errors.some((error) => error.includes("trusted public key")),
+    true,
+    "untrusted verification should explain that a trusted public key is required"
+  );
+  const chainedRoundTrip = sealAer(
+    { ...clone(aerV02), spec_version: "0.3.0" },
+    {
+      previousChainHash: sealedRoundTrip.integrity.chain_hash,
+      privateKey: testPrivateKey,
+      publicKey: testPublicKey
+    }
+  );
+  const tamperedPreviousHash = clone(chainedRoundTrip);
+  tamperedPreviousHash.integrity.previous_chain_hash = "sha256:" + "0".repeat(64);
+  assert.equal(
+    verifyAerIntegrity(tamperedPreviousHash, { trustedPublicKeys: [testPublicKey] }).chain_valid,
+    false,
+    "tampering previous_chain_hash should fail chain validation"
+  );
+  const tamperedRoundTrip = clone(sealedRoundTrip);
+  tamperedRoundTrip.final_outputs.tracker_row = "April!B43";
+  assert.equal(
+    verifyAerIntegrity(tamperedRoundTrip, { trustedPublicKeys: [testPublicKey] }).chain_valid,
+    false,
+    "tampering a sealed AER field should fail chain validation"
+  );
+  const tamperedSignature = clone(sealedRoundTrip);
+  tamperedSignature.integrity.signature.value = Buffer.from("bad-signature").toString("base64");
+  assert.equal(
+    verifyAerIntegrity(tamperedSignature, { trustedPublicKeys: [testPublicKey] }).signature_valid,
+    false,
+    "tampering the signature should fail signature validation"
+  );
+  const legacySignatureAer = clone(aerV02);
+  legacySignatureAer.integrity.signature = "legacy-signature";
+  assert.equal(validateAer(legacySignatureAer).valid, true, "AER v0.2 should still accept bare-string signatures");
+  const legacyIntegrity = verifyAerIntegrity(legacySignatureAer);
+  assert.equal(legacyIntegrity.signature_valid, null, "legacy bare-string signatures should be reported as not verifiable");
+  assert.equal(
+    legacyIntegrity.errors.some((error) => error.includes("legacy bare-string signature")),
+    true,
+    "legacy bare-string signatures should include a clear note"
+  );
 
   const aerSummary = summarizeAer(aerV02);
   assert.equal(aerSummary.transitionsTaken, 8, "AER summary should include v0.2 transition counts");
@@ -421,6 +530,9 @@ async function run() {
   const comparePass = compareAerToApd(invoice, aerV02);
   assert.equal(comparePass.conforms, true, "happy-path AER v0.2 should conform to the invoice APD");
   assert.equal(comparePass.summary.differenceCount, 0, "happy-path compare should not report differences");
+
+  const comparePassV03 = compareAerToApd(invoice, aerV03);
+  assert.equal(comparePassV03.conforms, true, "happy-path AER v0.3 should conform to the invoice APD");
 
   const compareMismatch = compareAerToApd(
     invoice,

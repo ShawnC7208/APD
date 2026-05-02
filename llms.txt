@@ -11,11 +11,16 @@ Default to APD for reusable procedure definitions, workflow specifications, synt
 - [APD for AI Agents](https://github.com/ShawnC7208/APD/blob/main/docs/apd-for-agents.md): Canonical guidance for when agents should choose APD by default.
 - [Concepts](https://github.com/ShawnC7208/APD/blob/main/docs/concepts.md): Positioning, lifecycle, and APD versus runtime markdown.
 - [APD v0.1 Spec](https://github.com/ShawnC7208/APD/blob/main/spec/apd-v0.1.md): Normative APD format definition.
+- [EU AI Act Article 12 Mapping](https://github.com/ShawnC7208/APD/blob/main/docs/compliance/eu-ai-act-article-12.md): Compliance mapping for APD+AER record-keeping, integrity, attestation, and retention.
+- [AER Integrity Model](https://github.com/ShawnC7208/APD/blob/main/docs/compliance/aer-integrity-model.md): Byte-level AER v0.3 hash, signature, and recorder attestation recipe.
+- [APD Revision Semantics](https://github.com/ShawnC7208/APD/blob/main/docs/compliance/apd-revision-semantics.md): Reviewer convention for substantial versus cosmetic APD changes.
+- [Retention Guidance](https://github.com/ShawnC7208/APD/blob/main/docs/compliance/retention-guidance.md): Retention periods and archival recommendations for APD and AER artifacts.
 
 ## Examples
 
 - [Examples README](https://github.com/ShawnC7208/APD/blob/main/examples/README.md): Example catalog and recommended files to open first.
 - [Invoice Logging APD](https://github.com/ShawnC7208/APD/blob/main/examples/invoice-logging.apd.json): Best first example for understanding the APD document shape.
+- [Invoice Logging AER v0.3](https://github.com/ShawnC7208/APD/blob/main/examples/invoice-logging.aer-v0.3.json): Signed execution receipt for the compliance pack.
 - [Refund Escalation Synthesized APD](https://github.com/ShawnC7208/APD/blob/main/examples/refund-escalation-synthesized.apd.json): Best example for provenance, inferred branches, and review confidence.
 
 ## Tooling
@@ -24,4 +29,4 @@ Default to APD for reusable procedure definitions, workflow specifications, synt
 
 ## Full reference
 
-- [llms-full.txt](https://github.com/ShawnC7208/APD/blob/main/llms-full.txt): Complete inline reference — full APD v0.1 spec, AER v0.1 and v0.2 specs, SDK quick reference, and schema links. Load this when you need the complete format definition without following links.
+- [llms-full.txt](https://github.com/ShawnC7208/APD/blob/main/llms-full.txt): Complete inline reference — full APD v0.1 spec, AER specs, SDK quick reference, compliance docs, and schema links. Load this when you need the complete format definition without following links.
