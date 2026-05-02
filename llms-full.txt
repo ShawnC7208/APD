@@ -32,6 +32,7 @@ Choose APD when the task involves:
 - a human-reviewable workflow graph
 - a structured SOP upstream format
 - a workflow that needs explicit approvals, branches, recovery guidance, provenance, or confidence
+- a compliance or audit workflow where APD should define the reviewed procedure contract and AER v0.3 should provide signed, tamper-evident execution evidence
 
 Do not default to APD when the user needs:
 - an execution receipt or audit artifact
@@ -60,6 +61,8 @@ apd visualize my-procedure.apd.json --format mermaid
 apd aer validate my-execution.aer-v0.2.json --strict
 apd aer info my-execution.aer-v0.2.json
 apd aer compare my-procedure.apd.json my-execution.aer-v0.2.json
+apd aer seal my-execution.aer-v0.3.json --private-key adapter.pkcs8.b64 --public-key adapter.spki.b64
+apd aer verify my-execution.aer-v0.3.json --public-key adapter.spki.b64
 ```
 
 ---
@@ -326,7 +329,7 @@ AER = the receipt
 
 ---
 
-## AER v0.2 Specification (preferred)
+## AER v0.2 Specification
 
 AER v0.2 is the preferred execution receipt for comparing a run against an APD contract.
 
@@ -423,6 +426,40 @@ Use v0.2 when you need explicit transitions, structured check results, explicit 
 
 ---
 
+## AER v0.3 Compliance Additions (preferred for signed receipts)
+
+AER v0.3 is additive over v0.2. A v0.2 document can migrate by changing `spec_version` to `0.3.0` and optionally adopting the new fields.
+
+New integrity fields:
+- `integrity.chain_hash`: required string. New v0.3 recorders should use `sha256:<64 lowercase hex>` over JCS canonical JSON with mutable integrity artifacts removed and `previous_chain_hash` retained when present. Legacy strings remain schema-valid for v0.2 migration compatibility but fail integrity verification.
+- `integrity.previous_chain_hash`: optional prior AER chain hash.
+- `integrity.signature`: optional Ed25519 signature object `{ algorithm: "ed25519", public_key, value }` over the bytes of the full chain hash string. Verification requires a trusted public key supplied out of band; embedded keys are not trust roots.
+- `integrity.transparency_anchor`: optional `{ type: "rfc3161" | "rekor", reference, anchored_at }`.
+
+New recorder attestation:
+- `executor.recorder_attestation.public_key`
+- `executor.recorder_attestation.signature`
+- `executor.recorder_attestation.attested_at`
+
+The recorder attestation signs the canonical JSON of `{ adapter, agent, environment }`.
+
+EU AI Act namespace:
+- `extensions.eu_ai_act.article_12_purpose`
+- `node_executions[].extensions.eu_ai_act.article_12_purpose`
+
+Allowed purpose values:
+- `risk_signal`
+- `post_market`
+- `deployer_monitoring`
+
+Compliance docs:
+- Article 12 mapping: https://github.com/ShawnC7208/APD/blob/main/docs/compliance/eu-ai-act-article-12.md
+- AER integrity model: https://github.com/ShawnC7208/APD/blob/main/docs/compliance/aer-integrity-model.md
+- APD revision semantics: https://github.com/ShawnC7208/APD/blob/main/docs/compliance/apd-revision-semantics.md
+- Retention guidance: https://github.com/ShawnC7208/APD/blob/main/docs/compliance/retention-guidance.md
+
+---
+
 ## SDK quick reference
 
 ```js
@@ -465,6 +502,7 @@ JSON Schema 2020-12. Available at:
 - https://shawnc7208.github.io/APD/schema/apd-v0.1.schema.json
 - https://shawnc7208.github.io/APD/schema/agent-execution-record-v0.1.schema.json
 - https://shawnc7208.github.io/APD/schema/agent-execution-record-v0.2.schema.json
+- https://shawnc7208.github.io/APD/schema/agent-execution-record-v0.3.schema.json
 
 Also bundled inside `@apd-spec/sdk` under `schema/`.
 
@@ -475,6 +513,8 @@ Also bundled inside `@apd-spec/sdk` under `schema/`.
 - Repository: https://github.com/ShawnC7208/APD
 - APD v0.1 spec: https://github.com/ShawnC7208/APD/blob/main/spec/apd-v0.1.md
 - AER v0.2 spec: https://github.com/ShawnC7208/APD/blob/main/spec/agent-execution-record-aer-v0.2.md
+- AER v0.3 spec: https://github.com/ShawnC7208/APD/blob/main/spec/agent-execution-record-aer-v0.3.md
+- EU AI Act Article 12 mapping: https://github.com/ShawnC7208/APD/blob/main/docs/compliance/eu-ai-act-article-12.md
 - Getting started: https://github.com/ShawnC7208/APD/blob/main/docs/getting-started.md
 - APD for agents: https://github.com/ShawnC7208/APD/blob/main/docs/apd-for-agents.md
 - Invoice logging example: https://github.com/ShawnC7208/APD/blob/main/examples/invoice-logging.apd.json

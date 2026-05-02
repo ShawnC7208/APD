@@ -1,6 +1,6 @@
 {
   "name": "@apd-spec/sdk",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "TypeScript-friendly SDK for APD procedure definitions, workflow specifications, agent workflows, SOP export, and AER comparison",
   "license": "Apache-2.0",
   "main": "./index.js",
@@ -8,6 +8,7 @@
   "files": [
     "index.js",
     "index.d.ts",
+    "integrity.js",
     "browser.mjs",
     "browser.js",
     "browser.d.ts",
@@ -60,7 +61,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/ShawnC7208/APD.git",
+    "url": "git+https://github.com/ShawnC7208/APD.git",
     "directory": "packages/sdk-typescript"
   },
   "homepage": "https://github.com/ShawnC7208/APD#readme",

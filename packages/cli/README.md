@@ -37,6 +37,8 @@ apd visualize <file.apd.json> --format mermaid|svg
 apd aer validate <file.aer.json> [--json] [--quiet] [--strict]
 apd aer info <file.aer.json> [--json]
 apd aer compare <file.apd.json> <file.aer.json> [--json]
+apd aer seal <file.aer-v0.3.json> [--private-key <pem-or-base64-or-path>] [--public-key <pem-or-base64-or-path>] [--previous-hash <sha256:...>] [--attest-executor] [--output <file>] [--force]
+apd aer verify <file.aer.json> [--public-key <pem-or-base64-or-path>] [--json]
 ```
 
 Compatibility bridge:
@@ -137,7 +139,7 @@ apd visualize examples/invoice-logging.apd.json --format mermaid
 apd aer validate my-procedure.aer-v0.2.json --strict
 ```
 
-This validates AER v0.1 and v0.2 receipts.
+This validates AER v0.1, v0.2, and v0.3 receipts.
 
 Checkout-based example:
 
@@ -165,13 +167,31 @@ apd aer info examples/invoice-logging.aer-v0.2.json
 apd aer compare my-procedure.apd.json my-procedure.aer-v0.2.json
 ```
 
-This compares an AER v0.2 receipt against the APD contract and reports structured differences.
+This compares an AER v0.2 or v0.3 receipt against the APD contract and reports structured differences.
 
 Checkout-based example:
 
 ```bash
 apd aer compare examples/invoice-logging.apd.json examples/invoice-logging.aer-v0.2.json
 ```
+
+## `aer seal`
+
+```bash
+apd aer seal my-procedure.aer-v0.3.json --private-key adapter.pkcs8.b64 --public-key adapter.spki.b64 --attest-executor
+```
+
+This fills in `integrity.chain_hash`, optional `integrity.previous_chain_hash`, optional Ed25519 signature metadata, and optional `executor.recorder_attestation` for AER v0.3 documents. It writes in place unless `--output` is provided, and refuses to reseal an existing chain hash unless `--force` is set.
+
+## `aer verify`
+
+```bash
+apd aer verify my-procedure.aer-v0.3.json --public-key adapter.spki.b64
+```
+
+This verifies the AER chain hash, signature, and recorder attestation when present. It exits `0` on pass and `1` on failure.
+
+Signed receipts require `--public-key` from a trusted source. The public key embedded in the AER identifies the claimed signer but is not trusted by the verifier on its own.
 
 ## Related docs
 

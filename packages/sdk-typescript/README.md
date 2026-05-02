@@ -71,6 +71,13 @@ Schema and diagnostics helpers:
 - `bestPracticeDiagnostics`
 - `AERRecorder`
 
+Node-only integrity helpers from `@apd-spec/sdk/node`:
+
+- `canonicalizeJson`
+- `computeAerChainHash`
+- `sealAer`
+- `verifyAerIntegrity`
+
 ## Start a new APD scaffold
 
 ```js
@@ -178,13 +185,29 @@ const fs = require("fs");
 const { validateAer, compareAerToApd } = require("@apd-spec/sdk");
 
 const apd = fs.readFileSync("refund-review.apd.json", "utf8");
-const aer = fs.readFileSync("refund-review.aer-v0.2.json", "utf8");
+const aer = fs.readFileSync("refund-review.aer-v0.3.json", "utf8");
 
 console.log(validateAer(aer, { strict: true }));
 console.log(compareAerToApd(apd, aer));
 ```
 
-AER v0.1 remains supported for validation and summaries. AER v0.2 is the preferred comparison-capable receipt for APD conformance checks.
+AER v0.1 remains supported for validation and summaries. AER v0.2 remains supported for comparison. AER v0.3 is the preferred signed receipt for compliance-grade integrity checks.
+
+## Seal and verify AER integrity
+
+```js
+const fs = require("fs");
+const { sealAer, verifyAerIntegrity } = require("@apd-spec/sdk/node");
+
+const aer = JSON.parse(fs.readFileSync("refund-review.aer-v0.3.json", "utf8"));
+const privateKey = fs.readFileSync("adapter.pkcs8.b64", "utf8");
+const publicKey = fs.readFileSync("adapter.spki.b64", "utf8");
+
+const sealed = sealAer(aer, { privateKey, publicKey, attestExecutor: true });
+console.log(verifyAerIntegrity(sealed, { trustedPublicKeys: [publicKey] }));
+```
+
+`verifyAerIntegrity` requires trusted public keys supplied by the caller to report signatures and recorder attestations as valid. Embedded AER public keys are treated as claimed signer metadata, not as a trust root.
 
 ## Related docs
 

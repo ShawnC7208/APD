@@ -19,6 +19,7 @@ This folder contains worked APD and AER examples that are meant to be easy to re
 |---|---|
 | `invoice-logging.aer.json` | Minimal execution receipt referencing the invoice APD and recording approvals, evidence, and node executions |
 | `invoice-logging.aer-v0.2.json` | Preferred comparison-capable receipt with transitions, check results, approvals, final outputs, and evidence references |
+| `invoice-logging.aer-v0.3.json` | Compliance-pack receipt with Article 12 purpose tags, Ed25519 signature, recorder attestation, and verifiable chain hash |
 
 ## Notes
 
@@ -29,3 +30,4 @@ This folder contains worked APD and AER examples that are meant to be easy to re
 - `weekly-reconciliation.apd.json` shows that APD can still be authored directly when capture is not the source.
 - `invoice-logging.aer.json` remains the frozen minimal receipt example for AER v0.1.
 - `invoice-logging.aer-v0.2.json` is the preferred AER example when you want to compare an execution against the APD contract.
+- `invoice-logging.aer-v0.3.json` is signed with a documented test fixture key. The public verification key is in `examples/keys/`; the private signing key is intentionally not published and must not be treated as recoverable production material.

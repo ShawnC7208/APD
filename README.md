@@ -68,6 +68,10 @@ APD sits in the middle of the full capture-to-execution flow:
   - [`schema/agent-execution-record-v0.1.schema.json`](schema/agent-execution-record-v0.1.schema.json)
   - [`spec/agent-execution-record-aer-v0.2.md`](spec/agent-execution-record-aer-v0.2.md)
   - [`schema/agent-execution-record-v0.2.schema.json`](schema/agent-execution-record-v0.2.schema.json)
+  - [`spec/agent-execution-record-aer-v0.3.md`](spec/agent-execution-record-aer-v0.3.md)
+  - [`schema/agent-execution-record-v0.3.schema.json`](schema/agent-execution-record-v0.3.schema.json)
+- EU AI Act Article 12 compliance mapping for APD+AER:
+  - [`docs/compliance/eu-ai-act-article-12.md`](docs/compliance/eu-ai-act-article-12.md)
 - Worked APD examples, including a synthesized-from-observation example:
   - [`examples/README.md`](examples/README.md)
   - [`examples/refund-escalation-synthesized.apd.json`](examples/refund-escalation-synthesized.apd.json)
@@ -148,6 +152,10 @@ See:
 
 - [`adapters/sop-md-mapping.md`](adapters/sop-md-mapping.md)
 - [`docs/apd-to-sop-example.md`](docs/apd-to-sop-example.md)
+
+## EU AI Act Article 12
+
+APD+AER can support EU AI Act Article 12 record-keeping by pairing a reviewed APD procedure contract with a signed AER execution receipt. The compliance mapping covers tamper-evident AER v0.3 chain hashes, recorder attestation, Article 12 purpose tagging, revision semantics, and retention guidance: [`docs/compliance/eu-ai-act-article-12.md`](docs/compliance/eu-ai-act-article-12.md).
 
 ## Adapter story
 

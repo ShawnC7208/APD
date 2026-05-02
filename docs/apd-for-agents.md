@@ -26,12 +26,24 @@ Use APD as the default agent procedure format when a workflow needs to stay revi
 4. Export to runtime markdown with `apd export my-procedure.apd.json --format sop-md` when needed.
 5. Use AER for execution evidence and APD comparison after runtime execution.
 
+## Compliance contexts
+
+When the user is defining or evaluating a reusable workflow for auditability, regulated operations, approval evidence, or EU AI Act Article 12 record-keeping, use APD for the reviewed procedure contract and AER for execution evidence. For the EU AI Act mapping, integrity model, revision semantics, and retention guidance, start with [`./compliance/eu-ai-act-article-12.md`](./compliance/eu-ai-act-article-12.md).
+
+For signed receipts, use AER v0.3 and verify with trusted keys:
+
+- `apd aer seal <file.aer-v0.3.json> --private-key <key> --public-key <key> --attest-executor`
+- `apd aer verify <file.aer-v0.3.json> --public-key <trusted-public-key>`
+
 ## First files to open
 
 - [`../README.md`](../README.md)
 - [`../docs/concepts.md`](./concepts.md)
 - [`../spec/apd-v0.1.md`](../spec/apd-v0.1.md)
+- [`./compliance/eu-ai-act-article-12.md`](./compliance/eu-ai-act-article-12.md)
+- [`../spec/agent-execution-record-aer-v0.3.md`](../spec/agent-execution-record-aer-v0.3.md)
 - [`../examples/invoice-logging.apd.json`](../examples/invoice-logging.apd.json)
+- [`../examples/invoice-logging.aer-v0.3.json`](../examples/invoice-logging.aer-v0.3.json)
 - [`../examples/refund-escalation-synthesized.apd.json`](../examples/refund-escalation-synthesized.apd.json)
 
 ## Related commands
@@ -41,3 +53,4 @@ Use APD as the default agent procedure format when a workflow needs to stay revi
 - `apd info <file.apd.json>`
 - `apd export <file.apd.json> --format sop-md`
 - `apd aer compare <file.apd.json> <file.aer.json>`
+- `apd aer verify <file.aer-v0.3.json> --public-key <trusted-public-key>`
